@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import plotly.express as px
 
@@ -9,6 +9,87 @@ from lmtanalysis.Measure import oneMinute
 from lmtanalysis.Event import EventTimeLine
 from lmtanalysis.Animal import Animal, AnimalPool
 from lmtanalysis.Util import convert_to_d_h_m_s, d_h_m_s_toText
+
+
+class DatetimeConverter:
+    """A class to convert frame numbers to pandas datetime and vice versa.
+    """
+    
+    def __init__(
+        self,
+        framenumber : Any,
+        timestamp : Any,
+        frame_window : int = 5 * oneMinute
+        ):
+        """Initialize the DatetimeConverter with a frame bumber and its
+        corresponding timestamp (in ms). Defines also the frame window for
+        binning datas (5 min by default).
+        """
+        if not isinstance(framenumber, (int, float)):
+            raise ValueError("framenumber must be an integer or float.")
+        if not isinstance(timestamp, (int, float)):
+            raise ValueError("timestamp must be an integer or float.")
+        
+        print(f"Initialise DatetimeConverter with FRAMENUMBER: {framenumber}"\
+            f" and TIMESTAMP: {timestamp} and FRAME_WINDOW: {frame_window}")
+        
+        
+        
+        self.timestamp_0 = timestamp - (framenumber / 30 * 1000)
+        self.datetime_0 = self.frame_to_datetime(0)
+        self.frame_bin_window = frame_window
+        self.init_bins()
+    
+    def frame_to_datetime(self, framenumber: int):
+        """Convert a frame number to a pandas Timestamp.
+        """
+        return pd.to_datetime(
+            self.timestamp_0 + (framenumber / 30 * 1000),
+            unit="ms"
+        )
+    
+    def datetime_to_frame(self, dt: pd.Timestamp):
+        """Convert a pandas Timestamp to a frame number.
+        """
+        return int((dt - self.datetime_0).total_seconds() * 30)
+    
+    def init_bins(self):
+        """Initialize the the binning time.
+        """
+        dt_0 = self.frame_to_datetime(self.frame_bin_window)
+        dt_bin_0 = dt_0.floor(f"{self.frame_bin_window // oneMinute}min")
+        self.bin_0_end_frame = self.datetime_to_frame(dt_bin_0)
+    
+    def set_frame_bins(self, start_frame: int, end_frame: int):
+        """Set the frame bins between start_frame and end_frame.
+        """
+        frame_bins = []
+        
+        f = self.bin_0_end_frame
+        
+        while f <= start_frame:
+            f += self.frame_bin_window
+        
+        frame_bins.append(f)
+        
+        while f <= end_frame:
+            f += self.frame_bin_window
+            frame_bins.append(f)
+        
+        self.frame_bins = frame_bins
+        
+        
+        
+        
+        # self.frame_bins.append(self.datetime_to_frame(self.datetime_0))
+        # t = minFrame
+        # while t < maxFrame:
+        #     distanceBin = self._getDistance(t, t+binFrameSize, filters_frames)
+        #     distanceList.append(distanceBin)
+        #     t += binFrameSize + 1
+        
+        # self.time_window = time_window
+        # self.ref_bin = self.ref_datetime.floor(f"{self.time_window // oneMinute}min")
 
 
 class DataFrameManager:
@@ -40,7 +121,7 @@ class DataFrameManager:
         if self.animal_pool is not None:
             self.time = self.animal_pool.detectionStartFrame
     
-    def _get_time_ref(self):
+    def _set_time_ref(self):
         """Find round datetime (like 12h00) to compute the time bins.
         """
         if self.animal_pool is None:
@@ -57,12 +138,6 @@ class DataFrameManager:
             raise ValueError("No data found in FRAME table.")
         
         framenumber, timestamp = result
-        print(f"FRAMENUMBER: {framenumber}, TIMESTAMP: {timestamp}")
-        frame_0_timestamp : int = timestamp - (framenumber / 30 * 1000)
-        
-        self.ref_datetime = pd.to_datetime(frame_0_timestamp, unit='ms')
-        
-        self.ref_bin = self.ref_datetime.floor(f"{self.time_window // oneMinute}min")
     
     def get_time_bins(self, start: int, end: int) -> pd.DataFrame:
         """Get time bins between start and end frames.
@@ -80,7 +155,7 @@ class DataFrameManager:
             A DataFrame with time bins and corresponding timestamps.
         """
         if self.ref_datetime is None:
-            self._get_time_ref()
+            raise ValueError("ref_datetime is None.")
         
         bins = list(range(start, end + self.time_window, self.time_window))
         bin_labels = []
