@@ -11,7 +11,7 @@ from lmtanalysis.Animal import Animal, AnimalPool
 from lmtanalysis.Util import convert_to_d_h_m_s, d_h_m_s_toText
 
 
-class DataFrameConstructor:
+class DataFrameManager:
     """A class to construct pandas DataFrames from AnimalPool for easy
     data manipulation and analysis.
     """
@@ -37,7 +37,7 @@ class DataFrameConstructor:
         self.time_window = time_window
         self.ref_datetime : pd.Timestamp|None = None
         self.time : List[int]|None = None
-        if animal_pool is not None:
+        if self.animal_pool is not None:
             self.time = self.animal_pool.detectionStartFrame
     
     def _get_time_ref(self):
