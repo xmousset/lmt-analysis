@@ -7,7 +7,7 @@ Created on 5 févr. 2025
 import os
 
 from jinja2 import Environment, FileSystemLoader
-from experiments.api.report.ReportTools import clean_filename
+from dim_c_brains.res.report.ReportTools import clean_filename
 from datetime import datetime
 import pandas as pd
 

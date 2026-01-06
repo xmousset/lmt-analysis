@@ -1,115 +1,47 @@
-import sys
-import sqlite3
-from PyQt6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog,
-    QComboBox, QLineEdit, QLabel, QMessageBox
-)
-
-import importlib.util
 import os
+import sys
+import math
+import webbrowser
 from pathlib import Path
+from abc import abstractmethod
+from typing import Literal, List, Any
 
-folder = Path("myfolder")  # Replace with your folder path
+from IPython.display import clear_output
 
-rebuild_functions = []
+import sqlite3
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.colors import qualitative, sequential
 
-for file in folder.glob("*.py"):
-    module_name = file.stem
-    if module_name == "__init__":
-        continue
-    spec = importlib.util.spec_from_file_location(module_name, file)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    if hasattr(module, "rebuildevent"):
-        rebuild_functions.append(getattr(module, "rebuildevent"))
+lmt_analysis_path = Path(__file__).parent.parent
+sys.path.append(lmt_analysis_path.as_posix())
 
-# Now rebuild_functions is a list of all rebuildevent functions found
+from dim_c_brains.scripts.reports_manager import HTMLReportManager
+from dim_c_brains.scripts.events import generic_events_list
+from dim_c_brains.scripts.data_extractor import DataFrameCreator, LargeDataFrameCreator
+from dim_c_brains.scripts.plotting import plt_curve_shaded
+from dim_c_brains.scripts.ICM.mouse_characterization import ICM_event_analysis, ICM_movement_analysis
 
-class SQLiteColumnAdder(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("SQLite Column Adder")
-        self.conn = None
-        self.db_path = None
-
-        layout = QVBoxLayout()
-
-        self.load_btn = QPushButton("Load SQLite Database")
-        self.load_btn.clicked.connect(self.load_db)
-        layout.addWidget(self.load_btn)
-
-        self.table_label = QLabel("Select Table:")
-        layout.addWidget(self.table_label)
-        self.table_combo = QComboBox()
-        layout.addWidget(self.table_combo)
-
-        self.col_label = QLabel("New Column Name:")
-        layout.addWidget(self.col_label)
-        self.col_input = QLineEdit()
-        layout.addWidget(self.col_input)
-
-        self.add_btn = QPushButton("Add Column")
-        self.add_btn.clicked.connect(self.add_column)
-        layout.addWidget(self.add_btn)
-
-        self.setLayout(layout)
-
-    def load_db(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open SQLite Database", "", "SQLite Files (*.sqlite *.db)")
-        if file_path:
-            try:
-                self.conn = sqlite3.connect(file_path)
-                self.db_path = file_path
-                self.refresh_tables()
-                QMessageBox.information(self, "Success", f"Loaded database: {file_path}")
-            except Exception as e:
-                QMessageBox.critical(self, "Error", str(e))
-
-    def refresh_tables(self):
-        if self.conn:
-            cursor = self.conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-            tables = [row[0] for row in cursor.fetchall()]
-            self.table_combo.clear()
-            self.table_combo.addItems(tables)
-
-    def add_column(self):
-        table = self.table_combo.currentText()
-        col_name = self.col_input.text().strip()
-        if not table or not col_name:
-            QMessageBox.warning(self, "Input Error", "Please select a table and enter a column name.")
-            return
-        try:
-            cursor = self.conn.cursor()
-            cursor.execute(f"ALTER TABLE {table} ADD COLUMN {col_name} TEXT;")
-            self.conn.commit()
-            QMessageBox.information(self, "Success", f"Added column '{col_name}' to table '{table}'.")
-
-            # Ask if user wants to define a value for each row
-            reply = QMessageBox.question(
-                self,
-                "Set Value for New Column",
-                f"Do you want to set a value for all rows in the new column '{col_name}'?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            if reply == QMessageBox.StandardButton.Yes:
-                value, ok = QInputDialog.getText(
-                    self,
-                    "Set Value",
-                    f"Enter value for all rows in column '{col_name}':"
-                )
-                if ok:
-                    try:
-                        cursor.execute(f"UPDATE {table} SET {col_name} = ?", (value,))
-                        self.conn.commit()
-                        QMessageBox.information(self, "Success", f"Set value for all rows in '{col_name}'.")
-                    except Exception as e:
-                        QMessageBox.critical(self, "Error", f"Failed to set value: {e}")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
+from lmtanalysis.Animal import Animal, AnimalPool
+from lmtanalysis.Measure import oneDay, oneHour, oneMinute
+from lmtanalysis.Event import EventTimeLine
+from lmtanalysis.ParametersMouse import ParametersMouse
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = SQLiteColumnAdder()
-    window.show()
-    sys.exit(app.exec())
+    data_path = Path.home() / "Syncnot" / "lmt-blocks" / "experiments" / "xmd" / "nadege" / "groupe1-cage1-LMT1.sqlite"
+    connection = sqlite3.connect(data_path.as_posix())
+    repo_manager = HTMLReportManager()
+    
+    # start_time = 12*oneHour
+    # end_time = 13*oneHour
+
+    df_creator = LargeDataFrameCreator(
+        connection= connection,
+        chunk_size= oneDay
+    )
+    
+    ICM_event_analysis(repo_manager, df_creator)
+    ICM_movement_analysis(repo_manager, df_creator)
+    repo_manager.generate_local_output("test_nadege")

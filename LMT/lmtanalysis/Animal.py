@@ -2,7 +2,7 @@
 Created on 7 sept. 2017
 @author: Fab
 '''
-from typing import Dict, List
+from typing import Any, Dict, List
 from lmtanalysis.Detection import *
 
 #matplotlib fix for mac (uncomment if needed)
@@ -458,7 +458,7 @@ class Animal():
         """
         distance = 0
         skip_next = False
-        for t in range(tmin+1, tmax+1):
+        for t in range(tmin, tmax):
             
             if t in filters_frames:
                 if skip_next:
@@ -467,8 +467,8 @@ class Animal():
             else:
                 skip_next = False
             
-            previous_pos = self.detectionDictionary.get(t-1)
-            current_pos = self.detectionDictionary.get(t)
+            previous_pos = self.detectionDictionary.get(t)
+            current_pos = self.detectionDictionary.get(t+1)
             
             if current_pos is None or previous_pos is None:
                 continue
@@ -500,7 +500,7 @@ class Animal():
         Returns a list of distances traveled by `animal` (in cm) per bin of
         `binFrameSize` frames, between `minFrame` and `maxFrame`. By default,
         the distance is computed until the last detection of the animal. This
-        function can filters out specified events but no filtering is applied
+        function can filter out specified events but no filtering is applied
         by default.
         
         Parameters
@@ -544,7 +544,7 @@ class Animal():
         while t < maxFrame:
             distanceBin = self._getDistance(t, t+binFrameSize, filters_frames)
             distanceList.append(distanceBin)
-            t += binFrameSize + 1
+            t += binFrameSize
         
         return distanceList
 
@@ -560,7 +560,7 @@ class Animal():
         """
         Returns the distance traveled by `animal` (in cm) between `tmin` and
         `tmax`. By default, the distance is computed until the last detection
-        of the animal. This function can filters out specified events but no
+        of the animal. This function can filter out specified events but no
         filtering is applied by default.
 
         Parameters
@@ -600,6 +600,121 @@ class Animal():
         filters_frames = flicker_frames|stop_frames
         
         return self._getDistance(tmin, tmax, filters_frames)
+
+
+    def _getSpeed(
+        self,
+        tmin : int,
+        tmax : int,
+        filters_frames : Dict = {},
+        ) -> tuple[Any, Any, Any, Any, Any]:
+        """Internal function to compute the speeds (mean, std, min, max, sum)
+        of `animal` (in cm/s) between `tmin` and `tmax`, applying specified
+        filters.
+        
+        Returns
+        -------
+        tuple of float
+            (mean, std, min, max, sum) of speeds in cm/s.
+        """
+        speeds = []
+        skip_next = False
+        for t in range(tmin, tmax):
+            
+            if t in filters_frames:
+                if skip_next:
+                    continue
+                skip_next = True
+            else:
+                skip_next = False
+            
+            previous_pos = self.detectionDictionary.get(t)
+            current_pos = self.detectionDictionary.get(t+1)
+            
+            if current_pos is None or previous_pos is None:
+                continue
+            
+            speed = math.hypot(
+                current_pos.massX - previous_pos.massX,
+                current_pos.massY - previous_pos.massY
+            )*30*self.parameters.scaleFactor
+
+            speeds.append(speed)
+        
+        speeds = np.array(speeds)
+        
+        if speeds.size == 0:
+            return (np.nan, np.nan, np.nan, np.nan, np.nan)
+            # return (np.float64(0), np.float64(0), np.float64(0), np.float64(0), np.float64(0))
+        else:
+            return (speeds.mean(), speeds.std(), speeds.min(), speeds.max(), speeds.sum())
+    
+    
+    def getSpeedPerBin(
+        self,
+        binFrameSize : int,
+        minFrame: int = 0,
+        maxFrame: int|None = None,
+        filter_flickering : bool = False,
+        filter_stop : bool = False
+        ):
+        """
+        Returns the lists of speeds mean, min, max and std by `animal` (in
+        cm/s) per bin of `binFrameSize` frames, between `minFrame` and
+        `maxFrame`. By default, the distance is computed until the last
+        detection of the animal. This function can filter out specified events
+        but no filtering is applied by default.
+        
+        Parameters
+        ----------
+        filter_flickering : bool, optional
+            If True, do not take into account successive frames when they are
+            both flagged as a 'Flickering' event.
+        filter_stop : bool, optional
+            If True, do not take into account successive frames when they are
+            both flagged as a 'Stop' event.
+        
+        Returns
+        -------
+        List of tuples of float
+            Each tuple contains (mean, std, min, max, sum) of speeds in cm/s
+            for the corresponding bin.
+        """
+        if maxFrame is None:
+            maxFrame = self.getMaxDetectionT()
+        
+        if filter_flickering or filter_stop:
+            msg = "filtered"
+        else:
+            msg = "total"
+        print(f"Compute {msg} speed between frames {minFrame} and {maxFrame}")
+        
+        flicker_frames = {}
+        if filter_flickering:
+            flicker_frames = EventTimeLine(
+                conn= self.conn,
+                eventName= "Flickering",
+                idA= self.baseId
+            ).getDictionary()
+        
+        stop_frames = {}
+        if filter_stop:
+            stop_frames = EventTimeLine(
+                conn= self.conn,
+                eventName= "Stop",
+                idA= self.baseId
+            ).getDictionary()
+        
+        filters_frames = flicker_frames|stop_frames
+        
+        speeds_list : List[tuple[Any, Any, Any, Any, Any]] = []
+        t = minFrame
+        while t < maxFrame:
+            speeds = self._getSpeed(t, t+binFrameSize, filters_frames)
+            speeds_list.append(speeds)
+            t += binFrameSize
+        
+        return speeds_list
 
 
     def getOrientationVector(self, t):

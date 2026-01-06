@@ -7,10 +7,10 @@ from typing import Literal, List
 import pandas as pd
 import plotly.graph_objects as go
 
-lmt_blocks_path = Path("C:/Users/xavie/Syncnot/lmt-blocks")
-sys.path.append(lmt_blocks_path.as_posix())
-from experiments.api.report.Report import Report
-from experiments.api.report.WebSite import WebSite
+# lmt_analysis_path = Path.cwd().parent
+# sys.path.append(lmt_analysis_path.as_posix())
+from dim_c_brains.res.report.Report import Report
+from dim_c_brains.res.report.WebSite import WebSite
 
 
 class HTMLReportManager():
@@ -36,17 +36,31 @@ class HTMLReportManager():
         exp_name (str): Name of the experiment or report collection (used for
             folder organization).
     """
-    def __init__(self, exp_name: str = "main"):
+    def __init__(self):
         self.reports = []
-        self.exp_name = exp_name
+        self.exp_name = "main"
         self.html_param = {
             "full_html": False,
             "include_plotlyjs": "cdn",
             "config": {"displaylogo": False},
         }
         self.cwd = Path(__file__).parent.parent
-        
-    def add_report(self, name: str, figure: go.Figure|str, note: str|None = None, graph_datas: pd.DataFrame|None = None):
+    
+    def reports_creation_focus(self, exp_name : str = "main"):
+        """Define where the new reports will be added. The main page is
+        focused by default. If the input name is the same as an experiment
+        that already exist, the new reports will be added after all the reports
+        already created.
+        """
+        self.exp_name = exp_name
+    
+    def add_report(
+        self,
+        name: str,
+        figure: go.Figure|str,
+        note: str|None = None,
+        graph_datas: pd.DataFrame|None = None
+        ):
         """Add a report in `self.reports` with the appropriate parameters.
         Can automatically get a go.Figure and convert it in html.
 
@@ -72,15 +86,16 @@ class HTMLReportManager():
             experimentName= self.exp_name
         )
         if graph_datas is not None:
-            report.setDownloadableContent("[Download .xlsx]", graph_datas)
+            report.setDownloadableContent("Download .xlsx", graph_datas)
         self.reports.append(report)
     
-    def add_reports(
+    def add_multi_fig_report(
         self,
         name: str,
         figures: List[go.Figure|str],
         note: str|None = None,
         max_fig_in_row: int|None = None,
+        graph_datas: pd.DataFrame|None = None,
         ):
         """
         Add multiple Plotly figures as a single report, displayed in a matrix
@@ -120,7 +135,7 @@ class HTMLReportManager():
             for i in range(cols):
                 idx = j * cols + i
                 if idx < nb_fig:
-                    html += f"<div class='col'>"
+                    html += f"<div class='col-{12 // cols}'>"
                     figure = figures[idx]
                     if isinstance(figure, str):
                         html += figure
@@ -130,62 +145,56 @@ class HTMLReportManager():
             html += "</div>"
         html += "</div>"
         
-        self.reports.append(Report(
+        report = Report(
             name,
             html,
             experimentName= self.exp_name
-        ))
+        )
+        
+        if graph_datas is not None:
+            report.setDownloadableContent("Download .xlsx", graph_datas)
+            
+        self.reports.append(report)
     
     def add_title(
         self,
         name: str,
         content: str = "",
-        style: Literal["primary", "success", "danger", "warning"]= "success",
-        note: None|str = None
-    ):
-        body = ""
-        if note is not None:
-            body += note + "<hr>"
-        body += content
-        
-        self.reports.append(Report(
+        style: Literal["primary", "success", "danger", "warning"]= "success"
+        ):
+        """Add a title block as a report."""
+        report = Report(
             name,
-            body,
+            content,
             experimentName= self.exp_name,
             template= "splitter.html",
             style= style
-        ))
+        )
+        self.reports.append(report)
     
     def add_table(self, name: str, df: pd.DataFrame):
-        self.reports.append(Report(
+        """Add a table report from a pandas DataFrame."""
+        report = Report(
             name,
             df,
             experimentName= self.exp_name,
             template= "table.html",
-        ))
+        )
+        report.setDownloadableContent("Download .xlsx", df)
+        self.reports.append(report)
     
     def generate_local_output(
         self,
-        name: str,
-    ):
-        """Generate an HTML output locally from the accumulated reports.
-
-        Parameters
-        ----------
-        template_folder : Path
-            Folder containing the HTML template files.
-        out_folder : Path
-            Folder where the generated html files will be saved.
-        default_website_folder : Path
-            Folder containing default website assets.
-        """
-        output_folder = self.cwd / f"{name}"
+        output_name: str,
+        ):
+        """Generate an HTML output locally from the accumulated reports."""
+        output_folder = self.cwd / f"{output_name}"
         output_folder.mkdir(parents=True, exist_ok=True)
-        
+        print(output_folder.as_posix())
         webSite = WebSite(
-            templateFolder= (self.cwd/"template").as_posix(),
-            outFolder= output_folder.as_posix(),
-            defaultWebSiteFolder= (self.cwd/"assets").as_posix(),
+            templateFolder= (self.cwd/"res"/"template").as_posix(),
+            outFolder= output_folder.as_posix() + "/",
+            defaultWebSiteFolder= (self.cwd/"res"/"assets").as_posix(),
             passFile= "None"
         )
         
@@ -195,4 +204,5 @@ class HTMLReportManager():
             webSite.addReport(report)
     
         webSite.generateWebSite()
+        print(output_folder / "index.html")
         webbrowser.open((output_folder / "index.html").as_posix())

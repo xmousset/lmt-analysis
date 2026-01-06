@@ -8,7 +8,7 @@ import os
 
 from jinja2 import Environment, FileSystemLoader
 from datetime import datetime
-from experiments.api.report.Experiment import ExperimentManager
+from dim_c_brains.res.report.Experiment import ExperimentManager
 import ftplib
 from glob import glob
 import shutil
