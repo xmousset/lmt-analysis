@@ -7,8 +7,6 @@ from typing import Literal, List
 import pandas as pd
 import plotly.graph_objects as go
 
-# lmt_analysis_path = Path.cwd().parent
-# sys.path.append(lmt_analysis_path.as_posix())
 from dim_c_brains.res.report.Report import Report
 from dim_c_brains.res.report.WebSite import WebSite
 

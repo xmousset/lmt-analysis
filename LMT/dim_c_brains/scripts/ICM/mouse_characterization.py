@@ -16,7 +16,7 @@ import plotly.graph_objects as go
 from plotly.colors import qualitative, sequential
 
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
-from dim_c_brains.scripts.events import generic_events_list
+from dim_c_brains.events import generic_events_list
 from dim_c_brains.scripts.data_extractor import DataFrameCreator, LargeDataFrameCreator
 from dim_c_brains.scripts.plotting import plt_curve_shaded
 

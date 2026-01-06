@@ -19,7 +19,7 @@ lmt_analysis_path = Path(__file__).parent.parent
 sys.path.append(lmt_analysis_path.as_posix())
 
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
-from dim_c_brains.scripts.events import generic_events_list
+from dim_c_brains.events import generic_events_list
 from dim_c_brains.scripts.data_extractor import DataFrameCreator, LargeDataFrameCreator
 from dim_c_brains.scripts.plotting import plt_curve_shaded
 from dim_c_brains.scripts.ICM.mouse_characterization import ICM_event_analysis, ICM_movement_analysis

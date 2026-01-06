@@ -66,7 +66,8 @@ def add_trace_with_shaded_min_max(
         name= y_col,
         line = dict(color= colors[0][idx % len(colors[0])]) if colors is not None else colors
     ))
-    
+
+
 def plt_curve_shaded(
     df : DataFrame,
     x_col : str,
