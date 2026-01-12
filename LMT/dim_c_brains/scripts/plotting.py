@@ -1,9 +1,55 @@
 import re
 from typing import Any, List
 
+import pandas as pd
+from pandas import DataFrame
 from plotly.colors import qualitative
 from plotly import graph_objects as go
-from pandas import DataFrame
+
+
+def draw_nights(fig: go.Figure, start_time: pd.Timestamp, end_time: pd.Timestamp, night_begin: int, night_duration: int):
+    """
+    Adds shaded rectangles to a Plotly figure to indicate night periods.
+
+    Args:
+        fig (go.Figure): The Plotly figure to modify.
+        start_time (pd.Timestamp): The start time of the plot.
+        end_time (pd.Timestamp): The end time of the plot.
+        night_begin (int): The hour at which night begins (0-23).
+        night_duration (int): Duration of the night in hours.
+
+    Returns:
+        go.Figure: The figure with night periods shaded.
+    """
+    # Collect all x values from all traces in fig.data
+    x_values = []
+    for trace in getattr(fig, "data"):
+        if hasattr(trace, "x") and trace.x is not None:
+            x_values.extend(trace.x)
+    
+    if not x_values:
+        print("[WARN] draw_nights: No x values found in figure.")
+        return fig
+    
+    # Convert to pandas Timestamps if needed
+    x_values = pd.to_datetime(x_values)
+    start_time = min(x_values)
+    end_time = max(x_values)
+    
+    time = start_time
+    while time < end_time:
+        if time.hour == night_begin:
+            x_start = time
+            x_end = time + pd.Timedelta(hours= night_duration)
+            if x_end > end_time:
+                x_end = end_time
+            fig.add_vrect(
+                x0= x_start, x1= x_end,
+                line_width= 0, fillcolor= "black",
+                layer= "below", opacity= 0.1
+            )
+        time += pd.Timedelta(hours= 1)
+    return fig
 
 
 def make_rgb_transparent(color_sequence : List[str]):
