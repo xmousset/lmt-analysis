@@ -1,47 +1,59 @@
-import os
+"""
+Created on 08-01-2026
+@author: Xavier MD
+"""
+
 import sys
-import math
-import webbrowser
-from pathlib import Path
-from abc import abstractmethod
-from typing import Literal, List, Any
-
-from IPython.display import clear_output
-
 import sqlite3
-import numpy as np
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.colors import qualitative, sequential
+from pathlib import Path
 
 lmt_analysis_path = Path(__file__).parent.parent
 sys.path.append(lmt_analysis_path.as_posix())
 
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
-from dim_c_brains.events import generic_events_list
-from dim_c_brains.scripts.data_extractor import DataFrameCreator, LargeDataFrameCreator
+from dim_c_brains.scripts.data_extractor import DataFrameConstructor
 from dim_c_brains.scripts.plotting import plt_curve_shaded
-from dim_c_brains.scripts.ICM.mouse_characterization import ICM_event_analysis, ICM_movement_analysis
+from dim_c_brains.analysis.event import get_event_reports
+from dim_c_brains.analysis.activity import get_activity_reports
+from dim_c_brains.list_events import ICM_event_list
 
 from lmtanalysis.Animal import Animal, AnimalPool
 from lmtanalysis.Measure import oneDay, oneHour, oneMinute
-from lmtanalysis.Event import EventTimeLine
-from lmtanalysis.ParametersMouse import ParametersMouse
 
 if __name__ == "__main__":
-    data_path = Path.home() / "Syncnot" / "lmt-blocks" / "experiments" / "xmd" / "nadege" / "groupe1-cage1-LMT1.sqlite"
-    connection = sqlite3.connect(data_path.as_posix())
-    repo_manager = HTMLReportManager()
-    
+    data_nadege = (
+        Path.home()
+        / "Syncnot"
+        / "lmt-analysis"
+        / "LMT"
+        / "dim_c_brains"
+        / "res"
+        / "data"
+        / "groupe1-cage1-LMT1.sqlite"
+    )
+    data_example = (
+        Path.home()
+        / "Syncnot"
+        / "lmt-analysis"
+        / "LMT"
+        / "dim_c_brains"
+        / "res"
+        / "data"
+        / "20180110_validation_4_ind_Experiment_6644_e.sqlite"
+    )
+
+    #   DATA CHOICE
+    # data_path = data_nadege
+    data_path = data_example
+
     # start_time = 12*oneHour
     # end_time = 13*oneHour
 
-    df_creator = LargeDataFrameCreator(
-        connection= connection,
-        chunk_size= oneDay
-    )
-    
-    ICM_event_analysis(repo_manager, df_creator)
-    ICM_movement_analysis(repo_manager, df_creator)
-    repo_manager.generate_local_output("test_nadege")
+    connection = sqlite3.connect(data_path.as_posix())
+    repo_manager = HTMLReportManager()
+    df_creator = DataFrameConstructor(connection=connection)
+
+    get_event_reports(repo_manager, df_creator)
+    get_activity_reports(repo_manager, df_creator)
+
+    repo_manager.generate_local_output("test_analysis")
