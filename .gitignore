@@ -126,4 +126,5 @@ LMT/scripts/paire new.txt
 
 # xmd test files
 test.*
+test_*/
 *.sqlite
