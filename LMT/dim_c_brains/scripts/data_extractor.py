@@ -462,6 +462,7 @@ class DataFrameConstructor:
                         "END_TIME": end_times[i],
                         "EVENT_COUNT": counts[i],
                         "FRAME_COUNT": durations[i],
+                        "DURATION": durations[i] / 30 / 60,  # in minutes
                     }
                 )
 

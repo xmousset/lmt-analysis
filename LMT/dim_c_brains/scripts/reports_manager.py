@@ -11,7 +11,7 @@ from dim_c_brains.res.report.Report import Report
 from dim_c_brains.res.report.WebSite import WebSite
 
 
-class HTMLReportManager():
+class HTMLReportManager:
     """
     A manager for creating, organizing, and exporting HTML reports with
     Plotly figures and tables.
@@ -34,6 +34,7 @@ class HTMLReportManager():
         exp_name (str): Name of the experiment or report collection (used for
             folder organization).
     """
+
     def __init__(self):
         self.reports = []
         self.exp_name = "main"
@@ -43,22 +44,22 @@ class HTMLReportManager():
             "config": {"displaylogo": False},
         }
         self.cwd = Path(__file__).parent.parent
-    
-    def reports_creation_focus(self, exp_name : str = "main"):
+
+    def reports_creation_focus(self, exp_name: str = "main"):
         """Define where the new reports will be added. The main page is
         focused by default. If the input name is the same as an experiment
         that already exist, the new reports will be added after all the reports
         already created.
         """
         self.exp_name = exp_name
-    
+
     def add_report(
         self,
         name: str,
-        figure: go.Figure|str,
-        note: str|None = None,
-        graph_datas: pd.DataFrame|None = None
-        ):
+        figure: go.Figure | str,
+        note: str | None = None,
+        graph_datas: pd.DataFrame | None = None,
+    ):
         """Add a report in `self.reports` with the appropriate parameters.
         Can automatically get a go.Figure and convert it in html.
 
@@ -72,29 +73,25 @@ class HTMLReportManager():
         html = ""
         if note is not None:
             html += note + "<hr>"
-        
+
         if isinstance(figure, go.Figure):
             html += figure.to_html(**self.html_param)
         else:
             html += figure
-        
-        report = Report(
-            name,
-            html,
-            experimentName= self.exp_name
-        )
+
+        report = Report(name, html, experimentName=self.exp_name)
         if graph_datas is not None:
             report.setDownloadableContent("Download .xlsx", graph_datas)
         self.reports.append(report)
-    
+
     def add_multi_fig_report(
         self,
         name: str,
-        figures: List[go.Figure|str],
-        note: str|None = None,
-        max_fig_in_row: int|None = None,
-        graph_datas: pd.DataFrame|None = None,
-        ):
+        figures: List[go.Figure | str],
+        note: str | None = None,
+        max_fig_in_row: int | None = None,
+        graph_datas: pd.DataFrame | None = None,
+    ):
         """
         Add multiple Plotly figures as a single report, displayed in a matrix
         layout.
@@ -113,20 +110,20 @@ class HTMLReportManager():
         """
         nb_fig = len(figures)
         html = ""
-        
+
         if nb_fig == 0:
             return
-        
+
         if max_fig_in_row is None:
             cols = nb_fig
             rows = 1
         else:
             cols = min(max_fig_in_row, nb_fig)
             rows = (nb_fig + cols - 1) // cols
-        
+
         if note is not None:
             html += note + "<hr>"
-        
+
         html += "<div class='container'>"
         for j in range(rows):
             html += "<div class='row'>"
@@ -142,65 +139,59 @@ class HTMLReportManager():
                     html += "</div>"
             html += "</div>"
         html += "</div>"
-        
-        report = Report(
-            name,
-            html,
-            experimentName= self.exp_name
-        )
-        
+
+        report = Report(name, html, experimentName=self.exp_name)
+
         if graph_datas is not None:
             report.setDownloadableContent("Download .xlsx", graph_datas)
-            
+
         self.reports.append(report)
-    
+
     def add_title(
         self,
         name: str,
         content: str = "",
-        style: Literal["primary", "success", "danger", "warning"]= "success"
-        ):
+        style: Literal["primary", "success", "danger", "warning"] = "success",
+    ):
         """Add a title block as a report."""
         report = Report(
             name,
             content,
-            experimentName= self.exp_name,
-            template= "splitter.html",
-            style= style
+            experimentName=self.exp_name,
+            template="splitter.html",
+            style=style,
         )
         self.reports.append(report)
-    
+
     def add_table(self, name: str, df: pd.DataFrame):
         """Add a table report from a pandas DataFrame."""
         report = Report(
             name,
             df,
-            experimentName= self.exp_name,
-            template= "table.html",
+            experimentName=self.exp_name,
+            template="table.html",
         )
         report.setDownloadableContent("Download .xlsx", df)
         self.reports.append(report)
-    
+
     def generate_local_output(
         self,
-        output_name: str,
-        ):
+        output_folder: Path,
+    ):
         """Generate an HTML output locally from the accumulated reports."""
-        output_folder = self.cwd / f"{output_name}"
         output_folder.mkdir(parents=True, exist_ok=True)
-        print(output_folder.as_posix())
         webSite = WebSite(
-            templateFolder= (self.cwd/"res"/"template").as_posix(),
-            outFolder= output_folder.as_posix() + "/",
-            defaultWebSiteFolder= (self.cwd/"res"/"assets").as_posix(),
-            passFile= "None"
+            templateFolder=str(self.cwd / "res" / "template"),
+            outFolder=str(output_folder.absolute()) + "/",
+            defaultWebSiteFolder=str(self.cwd / "res" / "assets"),
+            passFile="None",
         )
-        
+
         webSite.initWebSiteOutFolder()
-        
+
         for report in self.reports:
             webSite.addReport(report)
-    
+
         webSite.generateWebSite()
         print(output_folder / "index.html")
-        webbrowser.open((output_folder / "index.html").as_posix())
+        webbrowser.open(str(output_folder / "index.html"))

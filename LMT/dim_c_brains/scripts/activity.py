@@ -55,7 +55,13 @@ def get_activity_reports(
     #   Distance   #
     #######################################
 
-    fig = px.bar(df, "START_TIME", "DISTANCE", color="RFID")
+    fig = px.bar(
+        df,
+        "START_TIME",
+        "DISTANCE",
+        color="RFID",
+        labels={"DISTANCE": "DISTANCE (cm)"},
+    )
 
     report_title = f"Total distance travelled"
     report_description = f"""
@@ -155,7 +161,13 @@ def get_activity_reports(
     #   Cumulative speeds   #
     #######################################
 
-    fig = px.bar(df, "START_TIME", "SPEED_SUM", color="RFID")
+    fig = px.bar(
+        df,
+        "START_TIME",
+        "SPEED_SUM",
+        color="RFID",
+        labels={"SPEED_SUM": "SPEED_SUM (cm/s)"},
+    )
 
     report_title = f"Cumulative speed"
     report_description = f"""
@@ -173,8 +185,13 @@ def get_activity_reports(
     #######################################
 
     fig = plt_curve_shaded(
-        df, "START_TIME", "SPEED_MEAN", y_std_col="SPEED_STD", color="RFID"
+        df,
+        "START_TIME",
+        "SPEED_MEAN",
+        y_std_col="SPEED_STD",
+        color="RFID",
     )
+    fig.update_layout(yaxis_title="SPEED_MEAN (cm/s)")
 
     report_title = f"Mean speed with std"
     report_description = f"""
@@ -191,4 +208,4 @@ def get_activity_reports(
     #######################################
     #   TABLE   #
     #######################################
-    report_manager.add_table(name=f"Activity complete table", df=df)
+    report_manager.add_table(name=f"complete_table", df=df)

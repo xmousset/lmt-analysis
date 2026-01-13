@@ -13,8 +13,8 @@ sys.path.append(lmt_analysis_path.as_posix())
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
 from dim_c_brains.scripts.data_extractor import DataFrameConstructor
 from dim_c_brains.scripts.plotting import plt_curve_shaded
-from dim_c_brains.analysis.event import get_event_reports
-from dim_c_brains.analysis.activity import get_activity_reports
+from dim_c_brains.scripts.event import get_event_reports
+from dim_c_brains.scripts.activity import get_activity_reports
 from dim_c_brains.list_events import ICM_event_list
 
 from lmtanalysis.Animal import Animal, AnimalPool
@@ -56,4 +56,5 @@ if __name__ == "__main__":
     get_event_reports(repo_manager, df_creator)
     get_activity_reports(repo_manager, df_creator)
 
-    repo_manager.generate_local_output("test_analysis")
+    output_folder = repo_manager.cwd / "test_analysis"
+    repo_manager.generate_local_output(output_folder)
