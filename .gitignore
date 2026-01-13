@@ -125,6 +125,7 @@ LMT/scripts/paire new.txt
 *.jpg
 
 # xmd test files
-test.*
+test*.py
+test*.ipynb
 test_*/
 *.sqlite
