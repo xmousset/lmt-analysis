@@ -1,3 +1,7 @@
+"""
+@author: Xavier MD
+"""
+
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -492,7 +496,7 @@ class DataFrameConstructor:
         if df is None:
             raise ValueError("Unable to create a dataframe.")
 
-        return df
+        return self.sort_rfid_as_category(df)
 
     def get_df_activity(
         self,
@@ -581,4 +585,20 @@ class DataFrameConstructor:
         if df is None:
             raise ValueError("Unable to create a dataframe.")
 
+        return self.sort_rfid_as_category(df)
+
+    def sort_rfid_as_category(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Set the RFID column as a categorical data (sorted) type for better
+        performance in plotting and analysis.
+
+        Args:
+            df (pd.DataFrame): The input DataFrame with an 'RFID' column.
+
+        Returns:
+            pd.DataFrame: The modified DataFrame with 'RFID' as a category.
+        """
+        sorted_rfids = sorted(df["RFID"].unique())
+        df["RFID"] = pd.Categorical(
+            df["RFID"], categories=sorted_rfids, ordered=True
+        )
         return df

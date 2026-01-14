@@ -1,3 +1,7 @@
+"""
+@author: Xavier MD
+"""
+
 import os
 import sys
 import webbrowser
@@ -159,6 +163,32 @@ class HTMLReportManager:
             content,
             experimentName=self.exp_name,
             template="splitter.html",
+            style=style,
+        )
+        self.reports.append(report)
+
+    def add_card(
+        self,
+        name: str,
+        content: str = "",
+        style: Literal["primary", "success", "danger", "warning"] = "warning",
+    ):
+        """Add a card block as a report."""
+        card_title = (
+            "<div style='text-align: center;'>"
+            "<strong>"
+            "<span style='color: black;'>"
+            f"{name}"
+            "</strong>"
+            "</span>"
+            "</div>"
+        )
+        card_content = f"<span style='color: black;'>" f"{content}" "</span>"
+        report = Report(
+            card_title,
+            card_content,
+            experimentName=self.exp_name,
+            template="miniCard.html",
             style=style,
         )
         self.reports.append(report)
