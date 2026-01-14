@@ -2,34 +2,14 @@
 @author: Xavier MD
 """
 
-import os
-import sys
-import math
-import webbrowser
-from pathlib import Path
-from abc import abstractmethod
-from typing import Literal, List, Any
-
-from IPython.display import clear_output
-
-import sqlite3
-import numpy as np
-import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-from plotly.colors import qualitative, sequential
 
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
 from dim_c_brains.scripts.data_extractor import DataFrameConstructor
 from dim_c_brains.scripts.plotting_functions import (
     draw_nights,
-    plt_curve_shaded,
+    line_with_shade,
 )
-
-from lmtanalysis.Animal import Animal, AnimalPool
-from lmtanalysis.Measure import oneDay, oneHour, oneMinute
-from lmtanalysis.Event import EventTimeLine
-from lmtanalysis.ParametersMouse import ParametersMouse
 
 
 def generate_activity_reports(
@@ -241,7 +221,7 @@ def generate_activity_reports(
     #   Speed mean and std   #
     #######################################
 
-    fig = plt_curve_shaded(
+    fig = line_with_shade(
         df,
         "START_TIME",
         "SPEED_MEAN",
@@ -254,9 +234,8 @@ def generate_activity_reports(
     report_title = f"Mean speed with std"
     report_description = f"""
     Mean speed (SPEED_MEAN) with the standard deviation (SPEED_STD) for each
-    animal (RFID) over START_TIME.
+    animal (RFID) over time (START_TIME).
     """
-    # TODO: Improve description.
 
     report_manager.add_report(
         name=report_title,

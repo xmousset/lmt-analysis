@@ -5,6 +5,7 @@
 import re
 from typing import Any, List
 
+import numpy as np
 import pandas as pd
 from pandas import DataFrame
 from plotly.colors import qualitative
@@ -73,73 +74,20 @@ def make_rgb_transparent(color_sequence: List[str]):
     return transparent_colors
 
 
-def add_trace_with_shaded_min_max(
-    fig: go.Figure,
-    df: DataFrame,
-    x_col: str,
-    y_col: str,
-    y_up: Any,
-    y_down: Any,
-    colors: tuple[List[str], List[str]] | None = None,
-    idx: int = 0,
+def hex_to_rgba(hex_color: str, alpha: float = 0.2):
+    hex_color = hex_color.lstrip("#")
+    r, g, b = tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
+    return f"rgba({r},{g},{b},{alpha})"
+
+
+def get_transparent_color_sequence(
+    color_sequence: List[str], alpha: float = 0.2
 ):
-    """
-    Adds a line plot with a shaded region (min-max or confidence interval) to a
-    Plotly figure.
-
-    Parameters
-    ----------
-    fig : go.Figure
-        The Plotly figure to add traces to.
-    df : DataFrame
-        DataFrame containing the data to plot.
-    x_col : str
-        Column name for x-axis values.
-    y_col : str
-        Column name for y-axis (mean/central) values.
-    y_up : Any
-        Upper bound values for the shaded region.
-    y_down : Any
-        Lower bound values for the shaded region.
-    colors : tuple[list[str], list[str]]
-        Tuple of color lists for line and fill.
-    idx : int, optional
-        Index for color selection. Defaults to 0.
-    """
-    colors = None
-    fig.add_trace(
-        go.Scatter(
-            x=list(df[x_col]) + list(df[x_col])[::-1],
-            y=list(y_up) + list(y_down)[::-1],
-            fill="toself",
-            fillcolor=(
-                colors[1][idx % len(colors[1])]
-                if colors is not None
-                else colors
-            ),
-            line=dict(color="rgba(255,255,255,0)"),  # no border
-            hoverinfo="skip",  # display info when mouse on it
-            showlegend=True,
-            name=y_col + " ± STD",
-        )
-    )
-
-    fig.add_trace(
-        go.Scatter(
-            x=df[x_col],
-            y=df[y_col],
-            mode="lines",
-            name=y_col,
-            line=(
-                dict(color=colors[0][idx % len(colors[0])])
-                if colors is not None
-                else colors
-            ),
-        )
-    )
+    rgba_colors = [hex_to_rgba(c, alpha) for c in color_sequence]
+    return rgba_colors
 
 
-def plt_curve_shaded(
+def line_with_shade(
     df: DataFrame,
     x_col: str,
     y_col: str,
@@ -195,49 +143,71 @@ def plt_curve_shaded(
         use_std = False
 
     if color_discrete_sequence is None:
-        color_discrete_sequence = qualitative.Plotly
-
-    transparent_colors = make_rgb_transparent(color_discrete_sequence)
+        color_sequence = qualitative.Plotly
+    else:
+        color_sequence = color_discrete_sequence
+    transparent_sequence = get_transparent_color_sequence(color_sequence)
 
     df_copy = df.copy()
+    # Fill NaN values with 0 for relevant columns (avoid RFID column)
     for col in [x_col, y_col, y_std_col, y_min_col, y_max_col]:
         if col is not None and col in df_copy.columns:
             df_copy[col].fillna(0)
 
     fig = go.Figure()
 
+    # Determine unique groups and number of colors to plot
     n_clr = 1
     unique_colors = None
     if color is not None:
-        unique_colors = df_copy[color].unique()
+        if "category_orders" in kwargs:
+            cat_orders = kwargs["category_orders"]
+            if color in cat_orders:
+                unique_colors = cat_orders[color]
+
+        if unique_colors is None:
+            unique_colors = df_copy[color].unique()
+
         n_clr = len(unique_colors)
 
     for i in range(n_clr):
         if unique_colors is None:
             sub_df = df_copy
+            legend_name = y_col
         else:
             sub_df = df_copy[df_copy[color] == unique_colors[i]]
+            legend_name = str(unique_colors[i])
 
         if use_std:
             std_up = sub_df[y_col] + sub_df[y_std_col]
-            std_low = sub_df[y_col] - sub_df[y_std_col]
+            std_down = sub_df[y_col] - sub_df[y_std_col]
         else:
             std_up = sub_df[y_max_col]
-            std_low = sub_df[y_min_col]
+            std_down = sub_df[y_min_col]
 
-        add_trace_with_shaded_min_max(
-            fig,
-            sub_df,
-            x_col,
-            y_col,
-            std_up,
-            std_low,
-            colors=(
-                (color_discrete_sequence, transparent_colors)
-                if color_discrete_sequence is not None
-                else None
-            ),
-            idx=i,
+        # standard deviation area
+        fig.add_trace(
+            go.Scatter(
+                x=list(sub_df[x_col]) + list(sub_df[x_col])[::-1],
+                y=list(std_up) + list(std_down)[::-1],
+                fill="toself",
+                fillcolor=transparent_sequence[i % len(transparent_sequence)],
+                line=dict(color="rgba(255,255,255,0)"),  # no border
+                hoverinfo="skip",  # do not display info when mouse on it
+                showlegend=True,
+                name=legend_name + " ± STD",
+            )
+        )
+
+        # line trace
+        fig.add_trace(
+            go.Scatter(
+                x=sub_df[x_col],
+                y=sub_df[y_col],
+                mode="lines",
+                name=legend_name,
+                line=dict(color=color_sequence[i % len(color_sequence)]),
+            )
         )
 
     fig.update_layout(xaxis_title=x_col, yaxis_title=y_col)
