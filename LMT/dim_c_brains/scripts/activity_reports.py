@@ -1,5 +1,4 @@
 """
-@create at: 22-12-2026
 @author: Xavier MD
 """
 
@@ -22,7 +21,10 @@ from plotly.colors import qualitative, sequential
 
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
 from dim_c_brains.scripts.data_extractor import DataFrameConstructor
-from dim_c_brains.scripts.plotting import plt_curve_shaded
+from dim_c_brains.scripts.plotting_functions import (
+    draw_nights,
+    plt_curve_shaded,
+)
 
 from lmtanalysis.Animal import Animal, AnimalPool
 from lmtanalysis.Measure import oneDay, oneHour, oneMinute
@@ -30,16 +32,34 @@ from lmtanalysis.Event import EventTimeLine
 from lmtanalysis.ParametersMouse import ParametersMouse
 
 
-def get_activity_reports(
+def generate_activity_reports(
     report_manager: HTMLReportManager,
     df_creator: DataFrameConstructor,
     filter_flickering: bool = False,
     filter_stop: bool = False,
+    night_begin: int = 20,
+    night_duration: int = 11,
 ):
     """Analyze the activity and construct all the generic reports."""
 
     df = df_creator.process_activity(filter_flickering, filter_stop)
     report_manager.reports_creation_focus("Activity")
+
+    nights_parameters = {
+        "start_time": df["START_TIME"].min(),
+        "end_time": df["START_TIME"].max(),
+        "night_begin": night_begin,
+        "night_duration": night_duration,
+    }
+
+    plot_parameters = {
+        "color": "RFID",
+        "category_orders": {"RFID": list(df["RFID"].cat.categories)},
+    }
+
+    #######################################
+    #   Titles   #
+    #######################################
 
     report_manager.add_title(
         name=f"Analysis of mice activity",
@@ -47,8 +67,23 @@ def get_activity_reports(
         This section presents the analysis of mice Activity recorded in the
         dataset. You can download the underlying data used for the plots
         in Excel format by clicking on the '<i>Download .xlsx</i>' link on the
-        top-right hand corner.\nAll distance are in centimeters (cm) and all
-        speeds are in centimeters per second (cm/s)""",
+        top-right hand corner.""",
+    )
+
+    report_manager.add_card(
+        name="Time interval unit",
+        content=f"""
+        Calculated time bin is {df_creator.binner.bin_size} frames.<br>
+        It corresponds to {df_creator.binner.bin_size / 30 / 60} minutes.
+        """,
+    )
+    report_manager.add_card(
+        name="Distance unit",
+        content="All distances are in centimeters (cm).",
+    )
+    report_manager.add_card(
+        name="Speed unit",
+        content="All speeds are in centimeters per second (cm/s).",
     )
 
     #######################################
@@ -59,13 +94,18 @@ def get_activity_reports(
         df,
         "START_TIME",
         "DISTANCE",
-        color="RFID",
         labels={"DISTANCE": "DISTANCE (cm)"},
+        **plot_parameters,
     )
+    fig = draw_nights(fig, **nights_parameters)
 
     report_title = f"Total distance travelled"
     report_description = f"""
-    Total DISTANCE travelled by each animal (RFID) over START_TIME.
+    This graph shows the total distance in centimeters (DISTANCE) travelled by
+    each animal (RFID) over time (START_TIME) during the interval time window.
+    <br>
+    This graph allows a visualization of the locomotor activity of each animal
+    over time.
     """
     report_manager.add_report(
         name=report_title,
@@ -78,11 +118,16 @@ def get_activity_reports(
     #   Stop count   #
     #######################################
 
-    fig = px.bar(df, "START_TIME", "STOP_COUNT", color="RFID")
+    fig = px.bar(df, "START_TIME", "STOP_COUNT", **plot_parameters)
+    fig = draw_nights(fig, **nights_parameters)
 
     report_title = f"Total stop count"
     report_description = f"""
-    Total number of stops (STOP_COUNT) by each animal (RFID) over START_TIME.
+    Total number of event "Stop" (STOP_COUNT) by each animal (RFID) over time
+    (START_TIME) during the interval time window.
+    <br>
+    This graph allows a visualization of how many pauses each animal has taken
+    over time.
     """
     report_manager.add_report(
         name=report_title,
@@ -112,8 +157,8 @@ def get_activity_reports(
             df_plot,
             r="MOVE_DURATION",
             theta="HOUR",
-            color="RFID",
             title="Hourly MOVE_DURATION",
+            **plot_parameters,
         )
     )
     figs.append(
@@ -121,8 +166,8 @@ def get_activity_reports(
             df_plot,
             r="STOP_DURATION",
             theta="HOUR",
-            color="RFID",
             title="Hourly STOP_DURATION",
+            **plot_parameters,
         )
     )
     figs.append(
@@ -131,8 +176,8 @@ def get_activity_reports(
             r="MOVE_DURATION",
             theta="HOUR",
             line_close=True,
-            color="RFID",
             title="Hourly MOVE_DURATION (Line)",
+            **plot_parameters,
         )
     )
     figs.append(
@@ -141,13 +186,20 @@ def get_activity_reports(
             r="STOP_DURATION",
             theta="HOUR",
             line_close=True,
-            color="RFID",
             title="Hourly STOP_DURATION (Line)",
+            **plot_parameters,
         )
     )
 
     report_description = f"""
-    MOVE_DURATION and STOP_DURATION per animal and per hour of the day.
+    Cumulated time taken by <i>Stop</i> events (STOP_DURATION) by each animal
+    (RFID) over each hour of the day.
+    <br>
+    The opposite is the time spent moving (MOVE_DURATION). It is calculated as
+    the interval time window minus STOP_DURATION.
+    <br>
+    This graph allows a visualization of the activity of each animal hours by
+    hours.
     """
     report_manager.add_multi_fig_report(
         name=f"Movement and stop duration per hour of the day",
@@ -161,24 +213,29 @@ def get_activity_reports(
     #   Cumulative speeds   #
     #######################################
 
-    fig = px.bar(
-        df,
-        "START_TIME",
-        "SPEED_SUM",
-        color="RFID",
-        labels={"SPEED_SUM": "SPEED_SUM (cm/s)"},
-    )
+    # fig = px.bar(
+    #     df,
+    #     "START_TIME",
+    #     "SPEED_SUM",
+    #     color="RFID",
+    #     labels={"SPEED_SUM": "SPEED_SUM (cm/s)"},
+    # )
+    # fig = draw_nights(fig, **nights_parameters)
 
-    report_title = f"Cumulative speed"
-    report_description = f"""
-    Cumulative speed (SPEED_SUM) for each animal (RFID) over START_TIME.
-    """
-    report_manager.add_report(
-        name=report_title,
-        figure=fig,
-        note=report_description,
-        graph_datas=df[["START_TIME", "SPEED_SUM", "RFID"]],
-    )
+    # report_title = f"Cumulative speed"
+    # report_description = f"""
+    # Cumulated speed (SPEED_SUM) of each animal (RFID) over time (START_TIME)
+    # during the interval time window.
+    # <br>
+    # This graph allows a visualization of how much the activity of each animal
+    # hours by hours.
+    # """
+    # report_manager.add_report(
+    #     name=report_title,
+    #     figure=fig,
+    #     note=report_description,
+    #     graph_datas=df[["START_TIME", "SPEED_SUM", "RFID"]],
+    # )
 
     #######################################
     #   Speed mean and std   #
@@ -189,15 +246,18 @@ def get_activity_reports(
         "START_TIME",
         "SPEED_MEAN",
         y_std_col="SPEED_STD",
-        color="RFID",
+        **plot_parameters,
     )
     fig.update_layout(yaxis_title="SPEED_MEAN (cm/s)")
+    fig = draw_nights(fig, **nights_parameters)
 
     report_title = f"Mean speed with std"
     report_description = f"""
     Mean speed (SPEED_MEAN) with the standard deviation (SPEED_STD) for each
     animal (RFID) over START_TIME.
     """
+    # TODO: Improve description.
+
     report_manager.add_report(
         name=report_title,
         figure=fig,
@@ -208,4 +268,4 @@ def get_activity_reports(
     #######################################
     #   TABLE   #
     #######################################
-    report_manager.add_table(name=f"complete_table", df=df)
+    report_manager.add_table(name=f"complete table", df=df)
