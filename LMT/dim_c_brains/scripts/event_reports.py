@@ -17,7 +17,7 @@ def generate_event_reports(
     df_creator: DataFrameConstructor,
     event_name: str = "Oral-oral Contact",
     night_begin: int = 20,
-    night_duration: int = 11,
+    night_duration: int = 12,
 ):
     """Analyze any event and construct all the generic reports."""
 
@@ -27,7 +27,7 @@ def generate_event_reports(
 
     nights_parameters = {
         "start_time": df["START_TIME"].min(),
-        "end_time": df["START_TIME"].max(),
+        "end_time": df["END_TIME"].max(),
         "night_begin": night_begin,
         "night_duration": night_duration,
     }
@@ -112,7 +112,11 @@ def generate_event_reports(
     #   Mean and STD per animal   #
     #######################################
 
-    df_plot = df.groupby("RFID")["DURATION"].agg(["mean", "std"]).reset_index()
+    df_plot = (
+        df.groupby("RFID", observed=True)["DURATION"]
+        .agg(["mean", "std"])
+        .reset_index()
+    )
     df_plot.rename(
         columns={"mean": "DURATION_MEAN", "std": "DURATION_STD"},
         inplace=True,
@@ -139,8 +143,8 @@ def generate_event_reports(
     """
     report_manager.add_report(
         name=report_title,
-        figure=fig,
-        note=report_description,
+        html_figure=fig,
+        top_note=report_description,
         graph_datas=df_plot,
     )
 
@@ -241,8 +245,8 @@ def generate_event_reports(
     """
     report_manager.add_report(
         name=report_title,
-        figure=fig,
-        note=report_description,
+        html_figure=fig,
+        top_note=report_description,
         graph_datas=df[["START_TIME", "EVENT_COUNT", "RFID"]],
     )
 
@@ -270,8 +274,8 @@ def generate_event_reports(
     """
     report_manager.add_report(
         name=report_title,
-        figure=fig,
-        note=report_description,
+        html_figure=fig,
+        top_note=report_description,
         graph_datas=df[["START_TIME", "DURATION", "RFID"]],
     )
 

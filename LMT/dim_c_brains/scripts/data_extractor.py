@@ -406,8 +406,14 @@ class DataFrameConstructor:
         )
 
     def get_frame_limits(self) -> tuple[int, int]:
-        """Get the current frame limits for data processing."""
+        """Get the frame limits."""
         return (self.binner.start_frame, self.binner.end_frame)
+
+    def get_time_limits(self) -> tuple[pd.Timestamp, pd.Timestamp]:
+        """Get the frame limits converted in time limits."""
+        start_time = self.binner.frame_to_time(self.binner.start_frame)
+        end_time = self.binner.frame_to_time(self.binner.end_frame)
+        return (start_time, end_time)
 
     def count_event(
         self,
@@ -441,10 +447,20 @@ class DataFrameConstructor:
 
         return (counts, durations)
 
-    def get_df_event(self, event: str):
+    def get_df_event(
+        self, event: str, frame_limit: tuple[int, int] | None = None
+    ):
         """Get a DataFrame containing event counts and durations for specified
         event.
         """
+        if frame_limit is None:
+            frame_limit = (self.binner.start_frame, self.binner.end_frame)
+
+        self.animal_pool.loadDetection(
+            start=frame_limit[0],
+            end=frame_limit[1],
+            lightLoad=True,
+        )
         start_frames = self.binner.get_bin_list("START")
         end_frames = self.binner.get_bin_list("END")
         start_times = self.binner.get_bin_list("START", unit="TIME")
@@ -482,12 +498,7 @@ class DataFrameConstructor:
         df = None
 
         for process_frames in process_iterator:
-            self.animal_pool.loadDetection(
-                start=process_frames[0],
-                end=process_frames[1],
-                lightLoad=True,
-            )
-            processed_df = self.get_df_event(event)
+            processed_df = self.get_df_event(event, frame_limit=process_frames)
             if df is None:
                 df = processed_df
             else:
@@ -500,6 +511,7 @@ class DataFrameConstructor:
 
     def get_df_activity(
         self,
+        frame_limit: tuple[int, int] | None = None,
         filter_flickering: bool = False,
         filter_stop: bool = False,
     ):
@@ -510,6 +522,14 @@ class DataFrameConstructor:
         It include distance, speed, move time and stop time
         binned according to the time window.
         """
+        if frame_limit is None:
+            frame_limit = (self.binner.start_frame, self.binner.end_frame)
+
+        self.animal_pool.loadDetection(
+            start=frame_limit[0],
+            end=frame_limit[1],
+            lightLoad=True,
+        )
         start_frames = self.binner.get_bin_list("START")
         end_frames = self.binner.get_bin_list("END")
         start_times = self.binner.get_bin_list("START", unit="TIME")
@@ -571,12 +591,9 @@ class DataFrameConstructor:
         df = None
 
         for process_frames in process_iterator:
-            self.animal_pool.loadDetection(
-                start=process_frames[0],
-                end=process_frames[1],
-                lightLoad=True,
+            processed_df = self.get_df_activity(
+                process_frames, filter_flickering, filter_stop
             )
-            processed_df = self.get_df_activity(filter_flickering, filter_stop)
             if df is None:
                 df = processed_df
             else:
@@ -601,4 +618,253 @@ class DataFrameConstructor:
         df["RFID"] = pd.Categorical(
             df["RFID"], categories=sorted_rfids, ordered=True
         )
+        return df
+
+    # def calculate_sensors_statistics(
+    #     self,
+    #     sensor_name: str,
+    #     sensor_values: List[float],
+    # ):
+    #     """Get sensors data (mean, min, max, std, sem) for a bin bordered by
+    #     bin_start_frame and bin_end_frame.
+
+    #     Returns a list of dicts, one per bin, always matching the number of bins.
+    #     If no data in a bin, fills with np.nan.
+    #     """
+
+    #     start_frames = self.binner.get_bin_list("START")
+    #     end_frames = self.binner.get_bin_list("END")
+
+    #     # Prepare a list of values for each bin
+    #     bin_values = [[] for _ in range(len(start_frames))]
+    #     for f, value in sensor_values.items():
+    #         frame = int(f)
+    #         if frame < frame_limit[0] or frame > frame_limit[1]:
+    #             continue
+    #         for i, (start, end) in enumerate(zip(start_frames, end_frames)):
+    #             if start <= frame <= end:
+    #                 bin_values[i].append(value)
+    #                 break
+
+    #     results: List[Dict[str, float]] = []
+    #     for values in bin_values:
+    #         if values:
+    #             arr = np.array(values)
+    #             results.append(
+    #                 {
+    #                     f"{sensor_name}_MEAN": float(arr.mean()),
+    #                     f"{sensor_name}_MIN": float(arr.min()),
+    #                     f"{sensor_name}_MAX": float(arr.max()),
+    #                     f"{sensor_name}_STD": (
+    #                         float(arr.std(ddof=1)) if len(arr) > 1 else 0.0
+    #                     ),
+    #                     f"{sensor_name}_SEM": (
+    #                         float(arr.std(ddof=1) / np.sqrt(len(arr)))
+    #                         if len(arr) > 1
+    #                         else 0.0
+    #                     ),
+    #                 }
+    #             )
+    #         else:
+    #             results.append(
+    #                 {
+    #                     f"{sensor_name}_MEAN": np.nan,
+    #                     f"{sensor_name}_MIN": np.nan,
+    #                     f"{sensor_name}_MAX": np.nan,
+    #                     f"{sensor_name}_STD": np.nan,
+    #                     f"{sensor_name}_SEM": np.nan,
+    #                 }
+    #             )
+    #     return results
+
+    # def get_df_sensors(self, frame_limit: tuple[int, int] | None = None):
+
+    #     if frame_limit is None:
+    #         frame_limit = (self.binner.start_frame, self.binner.end_frame)
+
+    #     start_frames = self.binner.get_bin_list("START")
+    #     end_frames = self.binner.get_bin_list("END")
+    #     start_times = self.binner.get_bin_list("START", unit="TIME")
+    #     end_times = self.binner.get_bin_list("END", unit="TIME")
+
+    #     sensors = [
+    #         "TEMPERATURE",
+    #         "HUMIDITY",
+    #         "SOUND",
+    #         "LIGHTVISIBLE",
+    #         "LIGHTVISIBLEANDIR",
+    #     ]
+
+    #     cursor = self.animal_pool.conn.cursor()
+    #     cursor.execute(
+    #         f"SELECT FRAMENUMBER FROM FRAME WHERE FRAMENUMBER >= {frame_limit[0]} AND FRAMENUMBER <= {frame_limit[1]}"
+    #     )
+    #     frame_rows = cursor.fetchall()
+    #     cursor.close()
+    #     frames_dic = {}
+    #     for row in frame_rows:
+    #         frame = row[0]
+    #         if (
+    #             frame >= self.binner.start_frame
+    #             and frame <= self.binner.end_frame
+    #         ):
+    #             frames_dic[frame] = True
+    #         else:
+    #             frames_dic[frame] = False
+
+    #     sensors_data: Dict[str, List[Dict[str, float]]] = {}
+    #     for sensor in sensors:
+    #         try:
+    #             cursor = self.animal_pool.conn.cursor()
+    #             cursor.execute(f"SELECT {sensor} FROM FRAME WHERE FRAMENUMBER >= {frame_limit[0]} AND FRAMENUMBER <= {frame_limit[1]}")
+    #             values: Dict[str, float] = {}
+    #             for frame, row in zip(frames_dic, cursor.fetchall()):
+    #                 if frames_dic.get(frame, False):
+    #                     values[frame] = row[0]
+    #             cursor.close()
+    #             sensors_data[sensor] = self.calculate_sensors_statistics(
+    #                 sensor, values
+    #             )
+    #         except:
+    #             print(f"Cannot access data for {sensor}. Skipping.")
+    #             sensors.remove(sensor)
+
+    #     results: List[Dict[str, Any]] = []
+    #     for i in range(len(start_frames)):
+    #         results.append(
+    #             {
+    #                 "START_FRAME": start_frames[i],
+    #                 "END_FRAME": end_frames[i],
+    #                 "START_TIME": start_times[i],
+    #                 "END_TIME": end_times[i],
+    #             }
+    #         )
+    #         for sensor in sensors:
+    #             for key, value in sensors_data[sensor][i].items():
+    #                 results[-1][key] = value
+    #     df = pd.DataFrame(results)
+    #     return df
+
+    def calculate_sensors_statistics(
+        self,
+        sensor_name: str,
+        frame_values: List[int],
+        sensor_values: List[float],
+    ):
+        """Get sensors data (mean, min, max, std, sem) for a bin bordered by
+        bin_start_frame and bin_end_frame.
+
+        Returns a list of dicts, one per bin, always matching the number of bins.
+        If no data in a bin, fills with np.nan.
+        """
+
+        start_frames = self.binner.get_bin_list("START")
+        end_frames = self.binner.get_bin_list("END")
+
+        results: List[Dict[str, float]] = []
+        bin_idx_end = -1
+        for i in range(len(start_frames)):
+
+            bin_idx_start = bin_idx_end + 1
+            bin_idx_end = bin_idx_start
+            while (
+                bin_idx_end < len(frame_values)
+                and frame_values[bin_idx_end] <= end_frames[i]
+            ):
+                bin_idx_end += 1
+            arr = np.array(sensor_values[bin_idx_start:bin_idx_end])
+            results.append(
+                {
+                    f"{sensor_name}_MEAN": float(arr.mean()),
+                    f"{sensor_name}_MIN": float(arr.min()),
+                    f"{sensor_name}_MAX": float(arr.max()),
+                    f"{sensor_name}_STD": (
+                        float(arr.std()) if len(arr) > 1 else 0.0
+                    ),
+                    f"{sensor_name}_SEM": (
+                        float(arr.std() / np.sqrt(len(arr)))
+                        if len(arr) > 1
+                        else 0.0
+                    ),
+                }
+            )
+        return results
+
+    def get_df_sensors(self, frame_limit: tuple[int, int] | None = None):
+
+        if frame_limit is None:
+            frame_limit = (self.binner.start_frame, self.binner.end_frame)
+
+        query_limits = f" WHERE FRAMENUMBER >= {frame_limit[0]} AND FRAMENUMBER <= {frame_limit[1]}"
+
+        start_frames = self.binner.get_bin_list("START")
+        end_frames = self.binner.get_bin_list("END")
+        start_times = self.binner.get_bin_list("START", unit="TIME")
+        end_times = self.binner.get_bin_list("END", unit="TIME")
+
+        sensors = [
+            "TEMPERATURE",
+            "HUMIDITY",
+            "SOUND",
+            "LIGHTVISIBLE",
+            "LIGHTVISIBLEANDIR",
+        ]
+
+        cursor = self.animal_pool.conn.cursor()
+        cursor.execute(f"SELECT FRAMENUMBER FROM FRAME" + query_limits)
+        frame_rows = cursor.fetchall()
+        cursor.close()
+        frames = [row[0] for row in frame_rows]
+
+        sensors_data: Dict[str, List[Dict[str, float]]] = {}
+        for sensor in sensors:
+            try:
+                cursor = self.animal_pool.conn.cursor()
+                cursor.execute(f"SELECT {sensor} FROM FRAME" + query_limits)
+                values = [row[0] for row in cursor.fetchall()]
+                cursor.close()
+                sensors_data[sensor] = self.calculate_sensors_statistics(
+                    sensor, frames, values
+                )
+            except:
+                print(f"Cannot access data for {sensor}. Skipping.")
+                sensors.remove(sensor)
+
+        print(sensors_data.keys())
+        results: List[Dict[str, Any]] = []
+        for i in range(len(start_frames)):
+            results.append(
+                {
+                    "START_FRAME": start_frames[i],
+                    "END_FRAME": end_frames[i],
+                    "START_TIME": start_times[i],
+                    "END_TIME": end_times[i],
+                }
+            )
+            for sensor in sensors:
+                for key, value in sensors_data[sensor][i].items():
+                    results[-1][key] = value
+
+        df = pd.DataFrame(results)
+        return df
+
+    def process_sensors(self):
+        """Process data between start and end frames to get a DataFrame
+        containing sensors data. It will process the whole dataset using
+        the process window.
+        """
+        process_iterator = self.binner.get_process_iterator()
+        df = None
+
+        for process_frames in process_iterator:
+            print(f"Processing frames: {process_frames}")
+            processed_df = self.get_df_sensors(frame_limit=process_frames)
+            if df is None:
+                df = processed_df
+            else:
+                df = pd.concat([df, processed_df], ignore_index=True)
+
+        if df is None:
+            raise ValueError("Unable to create a dataframe.")
+
         return df

@@ -18,7 +18,7 @@ def generate_activity_reports(
     filter_flickering: bool = False,
     filter_stop: bool = False,
     night_begin: int = 20,
-    night_duration: int = 11,
+    night_duration: int = 12,
 ):
     """Analyze the activity and construct all the generic reports."""
 
@@ -27,7 +27,7 @@ def generate_activity_reports(
 
     nights_parameters = {
         "start_time": df["START_TIME"].min(),
-        "end_time": df["START_TIME"].max(),
+        "end_time": df["END_TIME"].max(),
         "night_begin": night_begin,
         "night_duration": night_duration,
     }
@@ -89,8 +89,8 @@ def generate_activity_reports(
     """
     report_manager.add_report(
         name=report_title,
-        figure=fig,
-        note=report_description,
+        html_figure=fig,
+        top_note=report_description,
         graph_datas=df[["START_TIME", "DISTANCE", "RFID"]],
     )
 
@@ -111,8 +111,8 @@ def generate_activity_reports(
     """
     report_manager.add_report(
         name=report_title,
-        figure=fig,
-        note=report_description,
+        html_figure=fig,
+        top_note=report_description,
         graph_datas=df[["START_TIME", "STOP_COUNT", "RFID"]],
     )
 
@@ -239,8 +239,8 @@ def generate_activity_reports(
 
     report_manager.add_report(
         name=report_title,
-        figure=fig,
-        note=report_description,
+        html_figure=fig,
+        top_note=report_description,
         graph_datas=df[["START_TIME", "SPEED_MEAN", "SPEED_STD", "RFID"]],
     )
 

@@ -66,14 +66,6 @@ def draw_nights(
     return fig
 
 
-def make_rgb_transparent(color_sequence: List[str]):
-    transparent_colors = [
-        f"rgba{tuple(map(int, re.findall(r'\d+', c))) + (0.2,)}"
-        for c in color_sequence
-    ]
-    return transparent_colors
-
-
 def hex_to_rgba(hex_color: str, alpha: float = 0.2):
     hex_color = hex_color.lstrip("#")
     r, g, b = tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
@@ -151,8 +143,8 @@ def line_with_shade(
     df_copy = df.copy()
     # Fill NaN values with 0 for relevant columns (avoid RFID column)
     for col in [x_col, y_col, y_std_col, y_min_col, y_max_col]:
-        if col is not None and col in df_copy.columns:
-            df_copy[col].fillna(0)
+        if isinstance(col, str) and col in df_copy.columns:
+            df_copy[col] = df_copy[col].fillna(0)
 
     fig = go.Figure()
 

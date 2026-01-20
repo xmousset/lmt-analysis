@@ -60,32 +60,42 @@ class HTMLReportManager:
     def add_report(
         self,
         name: str,
-        figure: go.Figure | str,
-        note: str | None = None,
+        html_figure: go.Figure | str | None = None,
+        top_note: str | None = None,
         graph_datas: pd.DataFrame | None = None,
     ):
-        """Add a report in `self.reports` with the appropriate parameters.
-        Can automatically get a go.Figure and convert it in html.
+        """
+        Add a report to the `self.reports` list with the specified parameters.
+        This method can accept a Plotly figure, an HTML string, or None for the
+        report's figure. If a Plotly figure is provided, it is converted to
+        HTML. Optionally, a note can be added above the figure, and a pandas
+        DataFrame can be attached for download.
 
-        Parameters
-        ----------
-        name : str
-            Name of the report.
-        html : go.Figure | str
-            Plotly figure to add in the report.
+        Args:
+            name (str): The name of the report.
+            html_figure (go.Figure | str | None): A Plotly figure or HTML
+                string to include in the report. If None, no figure is added.
+            top_note (str | None): An optional note to include above the
+                figure.
+            graph_datas (pd.DataFrame | None): An optional pandas DataFrame
+                containing data related to the report, which can be made
+                available for download.
         """
         html = ""
-        if note is not None:
-            html += note + "<hr>"
+        if top_note is not None:
+            html += top_note + "<hr>"
 
-        if isinstance(figure, go.Figure):
-            html += figure.to_html(**self.html_param)
-        else:
-            html += figure
+        if html_figure is not None:
+            if isinstance(html_figure, go.Figure):
+                html += html_figure.to_html(**self.html_param)
+            else:
+                html += html_figure
 
         report = Report(name, html, experimentName=self.exp_name)
+
         if graph_datas is not None:
             report.setDownloadableContent("Download .xlsx", graph_datas)
+
         self.reports.append(report)
 
     def add_multi_fig_report(
