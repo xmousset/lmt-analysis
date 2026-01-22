@@ -1,5 +1,5 @@
 """
-@author: Xavier MD
+@author: xmousset
 """
 
 import plotly.express as px
@@ -14,14 +14,17 @@ from dim_c_brains.scripts.plotting_functions import (
 
 def generate_event_reports(
     report_manager: HTMLReportManager,
-    df_creator: DataFrameConstructor,
-    event_name: str = "Oral-oral Contact",
+    df_constructor: DataFrameConstructor,
+    event_name: str,
     night_begin: int = 20,
     night_duration: int = 12,
 ):
-    """Analyze any event and construct all the generic reports."""
+    """For any event, it creates a generic dataframe using the given
+    `DataFrameConstructor` and construct all the generic reports into the given
+    `HTMLReportManager` and returning the generated dataframe.
+    """
 
-    df = df_creator.process_event(event_name)
+    df = df_constructor.process_event(event_name)
     report_manager.reports_creation_focus(event_name)
     event_name_italic = f"<i>{event_name}</i>"
 
@@ -54,8 +57,8 @@ def generate_event_reports(
     report_manager.add_card(
         name="Time interval unit",
         content=f"""
-        Calculated time bin is {df_creator.binner.bin_size} frames.<br>
-        It corresponds to {df_creator.binner.bin_size / 30 / 60} minutes.
+        Calculated time bin is {df_constructor.binner.bin_size} frames.<br>
+        It corresponds to {df_constructor.binner.bin_size / 30 / 60} minutes.
         """,
     )
     report_manager.add_card(
@@ -166,43 +169,27 @@ def generate_event_reports(
 
     figs = []
     figs.append(
-        px.bar_polar(
+        px.line_polar(
             df_plot,
             r="EVENT_COUNT",
             theta="HOUR",
+            line_close=True,
             title="Hourly EVENT_COUNT",
             **plot_parameters,
         )
     )
+    figs[-1].update_polars(radialaxis_showticklabels=False)
     figs.append(
-        px.bar_polar(
+        px.line_polar(
             df_plot,
             r="DURATION",
             theta="HOUR",
+            line_close=True,
             title="Hourly DURATION",
             **plot_parameters,
         )
     )
-    figs.append(
-        px.line_polar(
-            df_plot,
-            r="EVENT_COUNT",
-            theta="HOUR",
-            line_close=True,
-            title="Hourly EVENT_COUNT (Line)",
-            **plot_parameters,
-        )
-    )
-    figs.append(
-        px.line_polar(
-            df_plot,
-            r="DURATION",
-            theta="HOUR",
-            line_close=True,
-            title="Hourly DURATION (Line)",
-            **plot_parameters,
-        )
-    )
+    figs[-1].update_polars(radialaxis_showticklabels=False)
 
     report_description = f"""
     Total number of {event_name_italic} events and duration per animal and per
@@ -283,3 +270,8 @@ def generate_event_reports(
     #   TABLE   #
     #######################################
     report_manager.add_table(name=f"complete table", df=df)
+
+    #######################################
+    #   Return   #
+    #######################################
+    return df

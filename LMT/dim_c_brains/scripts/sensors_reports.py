@@ -1,5 +1,5 @@
 """
-@author: Xavier MD
+@author: xmousset
 """
 
 import plotly.express as px
@@ -14,14 +14,28 @@ from dim_c_brains.scripts.plotting_functions import (
 
 def generate_sensors_reports(
     report_manager: HTMLReportManager,
-    df_creator: DataFrameConstructor,
+    df_constructor: DataFrameConstructor,
     night_begin: int = 20,
     night_duration: int = 12,
 ):
-    """Get the sensors data and construct all corresponding reports."""
+    """Get all sensors datas in a dataframe using the given
+    `DataFrameConstructor` and construct all the generic reports into the given
+    `HTMLReportManager` and returning the generated dataframe.
+    """
 
-    df = df_creator.process_sensors()
     report_manager.reports_creation_focus("Sensors")
+
+    df = df_constructor.process_sensors()
+
+    if df is None:
+        print("No sensors data available.")
+        report_manager.add_report(
+            name="Sensors data not available",
+            html_figure="""
+            No sensors data available in this dataset.
+            """,
+        )
+        return None
 
     nights_parameters = {
         "start_time": df["START_TIME"].min(),
@@ -29,35 +43,6 @@ def generate_sensors_reports(
         "night_begin": night_begin,
         "night_duration": night_duration,
     }
-
-    #######################################
-    #   Titles   #
-    #######################################
-
-    report_manager.add_title(
-        name=f"Sensors data visualization",
-        content=f"""
-        This section presents the visualization of the sensors data recorded in
-        the dataset. All sensors data can be downloaded in Excel format by
-        clicking on the '<i>Download .xlsx</i>' link on the top-right hand
-        corner of the last report (<i>complete table</i>).""",
-    )
-
-    report_manager.add_card(
-        name="Time interval unit",
-        content=f"""
-        Calculated time bin is {df_creator.binner.bin_size} frames.<br>
-        It corresponds to {df_creator.binner.bin_size / 30 / 60} minutes.
-        """,
-    )
-    report_manager.add_card(
-        name="Sensors units",
-        content="???.",
-    )
-
-    #######################################
-    #   Sensors plots   #
-    #######################################
 
     sensors = [
         "TEMPERATURE",
@@ -80,6 +65,35 @@ def generate_sensors_reports(
         "?",
         "?",
     ]
+
+    #######################################
+    #   Titles   #
+    #######################################
+
+    report_manager.add_title(
+        name=f"Sensors data visualization",
+        content=f"""
+        This section presents the visualization of the sensors data recorded in
+        the dataset. All sensors data can be downloaded in Excel format by
+        clicking on the '<i>Download .xlsx</i>' link on the top-right hand
+        corner of the last report (<i>complete table</i>).""",
+    )
+
+    report_manager.add_card(
+        name="Time interval unit",
+        content=f"""
+        Calculated time bin is {df_constructor.binner.bin_size} frames.<br>
+        It corresponds to {df_constructor.binner.bin_size / 30 / 60} minutes.
+        """,
+    )
+    report_manager.add_card(
+        name="Sensors units",
+        content="???.",
+    )
+
+    #######################################
+    #   Sensors plots   #
+    #######################################
 
     for sensor, sensor_label, unit in zip(sensors, sensors_labels, units):
 
@@ -141,3 +155,8 @@ def generate_sensors_reports(
     #   TABLE   #
     #######################################
     report_manager.add_table(name=f"complete table", df=df)
+
+    #######################################
+    #   Return   #
+    #######################################
+    return df

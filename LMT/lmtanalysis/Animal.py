@@ -490,9 +490,10 @@ class Animal():
     
     def getDistancePerBin(
         self,
-        binFrameSize : int,
+        binFrameSize : int = 5*oneMinute,
         minFrame: int = 0,
         maxFrame: int|None = None,
+        binIterator : List[tuple[int, int]]|None = None,
         filter_flickering : bool = False,
         filter_stop : bool = False
         ):
@@ -502,6 +503,10 @@ class Animal():
         the distance is computed until the last detection of the animal. This
         function can filter out specified events but no filtering is applied
         by default.
+        If `binIterator` is provided, it is used to define the bins instead
+        of using `minFrame`, `maxFrame` and `binFrameSize`. It should be a list
+        of tuples where each tuple contains the (start, end) frame numbers
+        defining each bin.
         
         Parameters
         ----------
@@ -540,11 +545,20 @@ class Animal():
         filters_frames = flicker_frames|stop_frames
         
         distanceList : List[float] = []
-        t = minFrame
-        while t < maxFrame:
-            distanceBin = self._getDistance(t, t+binFrameSize, filters_frames)
-            distanceList.append(distanceBin)
-            t += binFrameSize
+        if binIterator is None:
+            t = minFrame
+            while t < maxFrame:
+                distanceBin = self._getDistance(
+                    t, t+binFrameSize, filters_frames
+                )
+                distanceList.append(distanceBin)
+                t += binFrameSize
+        else:
+            for (bin_start, bin_end) in binIterator:
+                distanceBin = self._getDistance(
+                    bin_start, bin_end, filters_frames
+                )
+                distanceList.append(distanceBin)
         
         return distanceList
 
@@ -554,8 +568,7 @@ class Animal():
         tmin : int = 0,
         tmax : int|None = None,
         filter_flickering : bool = False,
-        filter_stop : bool = False,
-        _bins = None
+        filter_stop : bool = False
         ):
         """
         Returns the distance traveled by `animal` (in cm) between `tmin` and
@@ -607,15 +620,15 @@ class Animal():
         tmin : int,
         tmax : int,
         filters_frames : Dict = {},
-        ) -> tuple[Any, Any, Any, Any, Any]:
-        """Internal function to compute the speeds (mean, std, min, max, sum)
-        of `animal` (in cm/s) between `tmin` and `tmax`, applying specified
-        filters.
+        ) -> tuple[Any, Any, Any, Any, Any, Any]:
+        """Internal function to compute the speeds (mean, min, max, sum, std,
+        sem) of `animal` (in cm/s) between `tmin` and `tmax`, applying
+        specified filters.
         
         Returns
         -------
         tuple of float
-            (mean, std, min, max, sum) of speeds in cm/s.
+            (mean, min, max, sum, std, sem) of speeds in cm/s.
         """
         speeds = []
         skip_next = False
@@ -644,17 +657,18 @@ class Animal():
         speeds = np.array(speeds)
         
         if speeds.size == 0:
-            return (np.nan, np.nan, np.nan, np.nan, np.nan)
+            return (np.nan, np.nan, np.nan, np.nan, np.nan, np.nan)
             # return (np.float64(0), np.float64(0), np.float64(0), np.float64(0), np.float64(0))
         else:
-            return (speeds.mean(), speeds.std(), speeds.min(), speeds.max(), speeds.sum())
+            return (speeds.mean(), speeds.min(), speeds.max(), speeds.sum(), speeds.std(), speeds.std()/np.sqrt(speeds.size))
     
     
     def getSpeedPerBin(
         self,
-        binFrameSize : int,
+        binFrameSize : int = 5*oneMinute,
         minFrame: int = 0,
         maxFrame: int|None = None,
+        binIterator : List[tuple[int, int]]|None = None,
         filter_flickering : bool = False,
         filter_stop : bool = False
         ):
@@ -664,6 +678,10 @@ class Animal():
         `maxFrame`. By default, the distance is computed until the last
         detection of the animal. This function can filter out specified events
         but no filtering is applied by default.
+        If `binIterator` is provided, it is used to define the bins instead
+        of using `minFrame`, `maxFrame` and `binFrameSize`. It should be a list
+        of tuples where each tuple contains the (start, end) frame numbers
+        defining each bin.
         
         Parameters
         ----------
@@ -707,12 +725,18 @@ class Animal():
         
         filters_frames = flicker_frames|stop_frames
         
-        speeds_list : List[tuple[Any, Any, Any, Any, Any]] = []
-        t = minFrame
-        while t < maxFrame:
-            speeds = self._getSpeed(t, t+binFrameSize, filters_frames)
-            speeds_list.append(speeds)
-            t += binFrameSize
+        speeds_list : List[tuple[Any, Any, Any, Any, Any, Any]] = []
+        
+        if binIterator is None:
+            t = minFrame
+            while t < maxFrame:
+                speeds = self._getSpeed(t, t+binFrameSize, filters_frames)
+                speeds_list.append(speeds)
+                t += binFrameSize
+        else:
+            for (bin_start, bin_end) in binIterator:
+                speeds = self._getSpeed(bin_start, bin_end, filters_frames)
+                speeds_list.append(speeds)
         
         return speeds_list
 

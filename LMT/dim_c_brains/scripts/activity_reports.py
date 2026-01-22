@@ -1,5 +1,5 @@
 """
-@author: Xavier MD
+@author: xmousset
 """
 
 import plotly.express as px
@@ -14,15 +14,18 @@ from dim_c_brains.scripts.plotting_functions import (
 
 def generate_activity_reports(
     report_manager: HTMLReportManager,
-    df_creator: DataFrameConstructor,
+    df_constructor: DataFrameConstructor,
     filter_flickering: bool = False,
     filter_stop: bool = False,
     night_begin: int = 20,
     night_duration: int = 12,
 ):
-    """Analyze the activity and construct all the generic reports."""
+    """Analyse mice activity and creates a generic dataframe using the given
+    `DataFrameConstructor` and construct all the generic reports into the given
+    `HTMLReportManager` and returning the generated dataframe.
+    """
 
-    df = df_creator.process_activity(filter_flickering, filter_stop)
+    df = df_constructor.process_activity(filter_flickering, filter_stop)
     report_manager.reports_creation_focus("Activity")
 
     nights_parameters = {
@@ -53,8 +56,8 @@ def generate_activity_reports(
     report_manager.add_card(
         name="Time interval unit",
         content=f"""
-        Calculated time bin is {df_creator.binner.bin_size} frames.<br>
-        It corresponds to {df_creator.binner.bin_size / 30 / 60} minutes.
+        Calculated time bin is {df_constructor.binner.bin_size} frames.<br>
+        It corresponds to {df_constructor.binner.bin_size / 30 / 60} minutes.
         """,
     )
     report_manager.add_card(
@@ -248,3 +251,8 @@ def generate_activity_reports(
     #   TABLE   #
     #######################################
     report_manager.add_table(name=f"complete table", df=df)
+
+    #######################################
+    #   Return   #
+    #######################################
+    return df

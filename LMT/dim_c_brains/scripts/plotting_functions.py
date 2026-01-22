@@ -1,5 +1,5 @@
 """
-@author: Xavier MD
+@author: xmousset
 """
 
 import re
@@ -14,10 +14,10 @@ from plotly import graph_objects as go
 
 def draw_nights(
     fig: go.Figure,
-    start_time: pd.Timestamp,
-    end_time: pd.Timestamp,
     night_begin: int,
     night_duration: int,
+    start_time: pd.Timestamp | None = None,
+    end_time: pd.Timestamp | None = None,
 ):
     """
     Adds shaded rectangles to a Plotly figure to indicate night periods.
@@ -43,15 +43,24 @@ def draw_nights(
         return fig
 
     # Convert to pandas Timestamps if needed
-    x_values = pd.to_datetime(x_values)
-    start_time = min(x_values)
-    end_time = max(x_values)
+    if not isinstance(x_values[0], pd.Timestamp):
+        x_values = pd.to_datetime(x_values)
+    if start_time is None:
+        start_time = min(x_values)
+    if end_time is None:
+        end_time = max(x_values)
 
-    time = start_time
-    while time < end_time:
-        if time.hour == night_begin:
-            x_start = time
-            x_end = time + pd.Timedelta(hours=night_duration)
+    h = start_time.floor("1h")
+    start_h = h.replace(hour=night_begin)
+    if start_time.hour < night_begin:
+        start_h = start_h - pd.Timedelta(days=1)
+    delta_h = pd.Timedelta(hours=night_duration)
+    first_night = True
+    while h < end_time:
+
+        if h.hour == night_begin:
+            x_start = h
+            x_end = h + delta_h
             if x_end > end_time:
                 x_end = end_time
             fig.add_vrect(
@@ -62,7 +71,26 @@ def draw_nights(
                 layer="below",
                 opacity=0.1,
             )
-        time += pd.Timedelta(hours=1)
+            h += delta_h
+
+        elif first_night and h > start_h and h < start_h + delta_h:
+            first_night = False
+            x_start = start_time.floor("15min")
+            x_end = start_h + delta_h
+            if x_end > end_time:
+                x_end = end_time
+            fig.add_vrect(
+                x0=x_start,
+                x1=x_end,
+                line_width=0,
+                fillcolor="black",
+                layer="below",
+                opacity=0.1,
+            )
+
+        else:
+            h += pd.Timedelta(hours=1)
+
     return fig
 
 
