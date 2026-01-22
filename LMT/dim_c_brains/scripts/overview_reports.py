@@ -171,10 +171,8 @@ def generate_overview_reports(
                 df_events[df_events["EVENT"] == event]["DURATION"].sum()
                 / experiment["nb_animals"]
                 / days_for_mean
-                / 60,
-                1,
             )
-            card += f"<p style='margin: 0.5em 0;'><strong>{event}</strong>, <span>&asymp;</span> {mean_duration} hours / animal / day for this event with <span>&asymp;</span> {mean_count} total events / animal / day</p>"
+            card += f"<p style='margin: 0.5em 0;'><strong>{event}</strong>, <span>&asymp;</span> {mean_duration} min / animal / day for this event with <span>&asymp;</span> {mean_count} total events / animal / day</p>"
         card += "</div></div>"
 
         report_manager.add_card(
