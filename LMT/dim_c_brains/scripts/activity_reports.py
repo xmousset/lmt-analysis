@@ -136,40 +136,22 @@ def generate_activity_reports(
 
     figs = []
     figs.append(
-        px.bar_polar(
+        px.line_polar(
             df_plot,
             r="MOVE_DURATION",
             theta="HOUR",
+            line_close=True,
             title="Hourly MOVE_DURATION",
             **plot_parameters,
         )
     )
     figs.append(
-        px.bar_polar(
+        px.line_polar(
             df_plot,
             r="STOP_DURATION",
             theta="HOUR",
+            line_close=True,
             title="Hourly STOP_DURATION",
-            **plot_parameters,
-        )
-    )
-    figs.append(
-        px.line_polar(
-            df_plot,
-            r="MOVE_DURATION",
-            theta="HOUR",
-            line_close=True,
-            title="Hourly MOVE_DURATION (Line)",
-            **plot_parameters,
-        )
-    )
-    figs.append(
-        px.line_polar(
-            df_plot,
-            r="STOP_DURATION",
-            theta="HOUR",
-            line_close=True,
-            title="Hourly STOP_DURATION (Line)",
             **plot_parameters,
         )
     )
