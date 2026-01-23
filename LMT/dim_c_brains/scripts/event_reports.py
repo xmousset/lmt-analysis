@@ -7,6 +7,8 @@ import plotly.express as px
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
 from dim_c_brains.scripts.data_extractor import DataFrameConstructor
 from dim_c_brains.scripts.plotting_functions import (
+    str_h_min,
+    floor_power10,
     draw_nights,
     line_with_shade,
 )
@@ -16,23 +18,50 @@ def generate_event_reports(
     report_manager: HTMLReportManager,
     df_constructor: DataFrameConstructor,
     event_name: str,
-    night_begin: int = 20,
-    night_duration: int = 12,
+    **kwargs,
 ):
     """For any event, it creates a generic dataframe using the given
     `DataFrameConstructor` and construct all the generic reports into the given
     `HTMLReportManager` and returning the generated dataframe.
+
+    Other Parameters
+    ----------------
+    time : str, optional
+        The time column to use (default: "START_TIME").
+    night_begin : int, optional
+        The hour when the night begins (default: 20).
+    night_duration : int, optional
+        The duration of the night in hours (default: 12).
+    first_value_in_graph : bool, optional
+        Whether to ignore the first value in plots. It impacts the
+        rendering of columns graphs and so is ignored by default
+        (default: True).
     """
 
-    df = df_constructor.process_event(event_name)
     report_manager.reports_creation_focus(event_name)
-    event_name_italic = f"<i>{event_name}</i>"
+    df = df_constructor.process_event(event_name)
+
+    #######################################
+    #   Constants & Parameters   #
+    #######################################
+
+    TIME = kwargs.get("time", "START_TIME")
+
+    NB_ANIMALS = df["RFID"].nunique()
+
+    exp_start_time, exp_end_time = df_constructor.get_analysis_time_limits()
+    NB_DAYS = (exp_end_time - exp_start_time).total_seconds() / 3600 / 24
+
+    if kwargs.get("first_value_in_graph", True):
+        MASK = df["START_FRAME"] != df["START_FRAME"].iloc[0]
+    else:
+        MASK = df.index == df.index
 
     nights_parameters = {
         "start_time": df["START_TIME"].min(),
         "end_time": df["END_TIME"].max(),
-        "night_begin": night_begin,
-        "night_duration": night_duration,
+        "night_begin": kwargs.get("night_begin", 20),
+        "night_duration": kwargs.get("night_duration", 12),
     }
 
     plot_parameters = {
@@ -45,9 +74,9 @@ def generate_event_reports(
     #######################################
 
     report_manager.add_title(
-        name=f"Analysis of {event_name_italic} events",
+        name=f"Analysis of <i>{event_name}</i> events",
         content=f"""
-        This section presents the analysis of {event_name_italic} events
+        This section presents the analysis of <i>{event_name}</i> events
         recorded in the dataset.<br>
         You can download the underlying data used for the plots in Excel format
         by clicking on the '<i>Download .xlsx</i>' link on the top-right hand
@@ -67,6 +96,29 @@ def generate_event_reports(
     )
 
     #######################################
+    #   Event overview card   #
+    #######################################
+
+    card = """<div style="flex: 0 0 320px; min-width: 220px;
+    max-width: 400px;"> <div style="margin:0; padding:0;">
+    """
+    mean_count = round(df["EVENT_COUNT"].sum() / NB_ANIMALS / NB_DAYS)
+    mean_duration = round(df["DURATION"].sum() / NB_ANIMALS / NB_DAYS)
+    card += f"""
+    <p style='margin:0;'><strong>{event_name}</strong></p>
+    <ul style='margin:0;'>
+        <li>{str_h_min(mean_duration)} each day</li>
+        <li>{mean_count} event each day</li>
+    </ul>
+    """
+    card += "</div></div>"
+
+    report_manager.add_card(
+        name="Animal Average Overview",
+        content=card,
+    )
+
+    #######################################
     #   Total event per animal   #
     #######################################
 
@@ -82,7 +134,7 @@ def generate_event_reports(
             df_plot,
             x="RFID",
             y="EVENT_COUNT",
-            title=f"Total {event_name_italic} number of events per animal",
+            title=f"Total <i>{event_name}</i> number of events per animal",
             **plot_parameters,
         )
     )
@@ -91,14 +143,14 @@ def generate_event_reports(
             df_plot,
             x="RFID",
             y="DURATION",
-            title=f"Total {event_name_italic} events duration per animal",
+            title=f"Total <i>{event_name}</i> events duration per animal",
             labels={"DURATION": "DURATION (min)"},
             **plot_parameters,
         )
     )
 
     report_description = f"""
-    Total number of {event_name_italic} event (EVENT_COUNT) and the sum of
+    Total number of <i>{event_name}</i> event (EVENT_COUNT) and the sum of
     their duration in minutes (DURATION) for each animal (RFID).
     <br>
     This graph allows a visualization of the number of events each animal has
@@ -107,7 +159,7 @@ def generate_event_reports(
     report_manager.add_multi_fig_report(
         name=f"Event overview",
         figures=figs,
-        note=report_description,
+        top_note=report_description,
         graph_datas=df_plot,
     )
 
@@ -115,96 +167,155 @@ def generate_event_reports(
     #   Mean and STD per animal   #
     #######################################
 
+    figs = []
+
     df_plot = (
-        df.groupby("RFID", observed=True)["DURATION"]
+        df.groupby("RFID")[["EVENT_COUNT", "DURATION"]]
         .agg(["mean", "std"])
         .reset_index()
     )
-    df_plot.rename(
-        columns={"mean": "DURATION_MEAN", "std": "DURATION_STD"},
-        inplace=True,
+    df_plot.columns = [
+        "RFID",
+        "EVENT_COUNT_MEAN",
+        "EVENT_COUNT_STD",
+        "DURATION_MEAN",
+        "DURATION_STD",
+    ]
+
+    label = f"EVENT_COUNT per bin ({int(
+        df_constructor.binner.bin_size / 30 / 60
+    )} min)"
+    figs.append(
+        px.bar(
+            df_plot,
+            x="RFID",
+            y="EVENT_COUNT_MEAN",
+            error_y="EVENT_COUNT_STD",
+            error_y_minus=[0] * len(df_plot),
+            title="Mean and Std of EVENT_COUNT per bin per RFID",
+            labels={"EVENT_COUNT_MEAN": label},
+            **plot_parameters,
+        )
     )
 
-    fig = px.bar(
-        df_plot,
-        x="RFID",
-        y="DURATION_MEAN",
-        error_y="DURATION_STD",
-        error_y_minus=[0] * len(df_plot),
-        title="Mean and Std of DURATION per RFID",
-        labels={"DURATION_MEAN": "DURATION (min)"},
-        **plot_parameters,
+    label = f"DURATION (min) per bin ({int(
+        df_constructor.binner.bin_size / 30 / 60
+    )} min)"
+    figs.append(
+        px.bar(
+            df_plot,
+            x="RFID",
+            y="DURATION_MEAN",
+            error_y="DURATION_STD",
+            error_y_minus=[0] * len(df_plot),
+            title="Mean and Std of DURATION per bin per RFID",
+            labels={"DURATION_MEAN": label},
+            **plot_parameters,
+        )
     )
 
     report_title = "Event duration mean and standard deviation"
     report_description = f"""
-    The mean of all {event_name_italic} events duration (DURATION_MEAN) with
+    The mean of all <i>{event_name}</i> events duration (DURATION_MEAN) with
     the standard deviation (DURATION_STD) per animal (RFID).
     <br>
     This graph allows a visualization of the mean duration of one event for
     each animal as well as the variability of this duration.
     """
-    report_manager.add_report(
+    report_manager.add_multi_fig_report(
         name=report_title,
-        html_figure=fig,
+        figures=figs,
         top_note=report_description,
         graph_datas=df_plot,
     )
 
     #######################################
-    #   Event counts by hour of the day   #
+    #   Event per hour of the day   #
     #######################################
 
     df_plot = df.copy()
-    df_plot["HOUR"] = df_plot["START_TIME"].apply(lambda x: x.hour)
+    df_plot["DAYS"] = df_plot[TIME].apply(lambda x: x.day)
+    df_plot["HOUR"] = df_plot[TIME].apply(lambda x: x.hour)
+
+    nb_days_per_hour = []
+    for h in range(24):
+        nb_days_per_hour.append(
+            df_plot[df_plot["HOUR"] == h]["DAYS"].nunique()
+        )
+
     df_plot = (
-        df_plot.groupby(["RFID", "HOUR"], observed=True)[
-            ["EVENT_COUNT", "DURATION"]
-        ]
+        df_plot.groupby(["RFID", "HOUR"])[["EVENT_COUNT", "DURATION"]]
         .sum()
         .reset_index()
         .sort_values(by="HOUR")
     )
+
+    for rfid in df_plot["RFID"].unique():
+        for h in df_plot[df_plot["RFID"] == rfid]["HOUR"].unique():
+            df_plot.loc[
+                (df_plot["RFID"] == rfid) & (df_plot["HOUR"] == h), "DAYS"
+            ] = nb_days_per_hour[h]
+
+    df_plot["EVENT_COUNT_PER_DAY"] = df_plot["EVENT_COUNT"] / df_plot["DAYS"]
+    df_plot["DURATION_PER_DAY"] = df_plot["DURATION"] / df_plot["DAYS"]
+
     df_plot["HOUR"] = df_plot["HOUR"].astype(str) + "h"
 
     figs = []
     figs.append(
         px.line_polar(
             df_plot,
-            r="EVENT_COUNT",
+            r="EVENT_COUNT_PER_DAY",
             theta="HOUR",
             line_close=True,
-            title="Hourly EVENT_COUNT",
+            title="Hourly EVENT_COUNT_PER_DAY",
             **plot_parameters,
         )
     )
-    figs[-1].update_polars(radialaxis_showticklabels=False)
+    last_tick = floor_power10(df_plot["EVENT_COUNT_PER_DAY"].max())
+    if last_tick < 1:
+        tick_label = f"{last_tick:.1f}"
+    else:
+        tick_label = str(int(last_tick))
+    figs[-1].update_polars(
+        radialaxis_tickvals=[last_tick], radialaxis_ticktext=[tick_label]
+    )
+
     figs.append(
         px.line_polar(
             df_plot,
-            r="DURATION",
+            r="DURATION_PER_DAY",
             theta="HOUR",
             line_close=True,
-            title="Hourly DURATION",
+            title="Hourly DURATION_PER_DAY (min)",
             **plot_parameters,
         )
     )
-    figs[-1].update_polars(radialaxis_showticklabels=False)
+    last_tick = floor_power10(df_plot["DURATION_PER_DAY"].max())
+    if last_tick < 1:
+        tick_label = f"{last_tick:.1f}"
+    else:
+        tick_label = str(int(last_tick))
+    figs[-1].update_polars(
+        radialaxis_tickvals=[last_tick], radialaxis_ticktext=[tick_label]
+    )
 
     report_description = f"""
-    Total number of {event_name_italic} events and duration per animal and per
+    Total number of <i>{event_name}</i> events and duration per animal and per
     hour of the day.
     
-    Cumulated number (EVENT_COUNT) and cumulated time (DURATION) taken by
-    {event_name_italic} event for each animal (RFID) over each hour of the day.
+    Cumulated number (EVENT_COUNT_PER_DAY) and cumulated time
+    (DURATION_PER_DAY) taken by <i>{event_name}</i> event for each animal
+    (RFID) over each hour of the day divided by the numbers of times this hour
+    occurs (DAYS).
     <br>
-    This graph allows a visualization hours by hours of the {event_name_italic}
+    This graph allows a visualization hours by hours of the <i>{event_name}</i>
     event for each animal.
     """
     report_manager.add_multi_fig_report(
         name=f"Event per hour of the day",
         figures=figs,
-        note=report_description,
+        top_note=report_description,
         max_fig_in_row=2,
         graph_datas=df_plot,
     )
@@ -214,56 +325,84 @@ def generate_event_reports(
     #######################################
 
     fig = px.bar(
-        df,
-        x="START_TIME",
+        df[MASK],
+        x=TIME,
         y="EVENT_COUNT",
-        title=f"EVENT_COUNT per animal over START_TIME",
+        title=f"EVENT_COUNT per animal over {TIME}",
         **plot_parameters,
     )
     fig = draw_nights(fig, **nights_parameters)
 
-    report_title = f"Number of event (EVENT_COUNT) per animal over START_TIME"
+    report_title = f"Number of event per animal over time"
     report_description = f"""
-    Number of {event_name_italic} event (EVENT_COUNT) for each animal (RFID)
-    over time (START_TIME) during the interval time window.
+    Number of <i>{event_name}</i> event (EVENT_COUNT) for each
+    animal (RFID) over time ({TIME}) during the interval time window.
     <br>
     This graph allows a visualization of how many times each animal has
     performed the event over time.
+    <br>
+    <div style="color: #b30000; background: #fff0f0; border: 1px solid #b30000;
+    padding: 1em; border-radius: 6px; font-weight: bold; display: flex;
+    align-items: center; gap: 0.5em;">
+    <span style="font-size: 1.5em;">&#9888;</span>
+    <span>
+        Data for each animal is always valid.
+        <br>
+        However, if an event involves N animals simultaneously,
+        the total (cumulative) values summed across all RFIDs should be
+        divided by N to obtain the total number of events.
+    </span>
+    </div>
     """
+
     report_manager.add_report(
         name=report_title,
         html_figure=fig,
         top_note=report_description,
-        graph_datas=df[["START_TIME", "EVENT_COUNT", "RFID"]],
+        graph_datas=df[["RFID", TIME, "EVENT_COUNT", "DURATION"]],
     )
 
     #######################################
-    #   Duration   #
+    #   Event duration   #
     #######################################
 
     fig = px.bar(
-        df,
-        x="START_TIME",
+        df[MASK],
+        x=TIME,
         y="DURATION",
-        title=f"DURATION per animal over START_TIME",
+        title=f"DURATION per animal over {TIME}",
         labels={"DURATION": "DURATION (min)"},
         **plot_parameters,
     )
     fig = draw_nights(fig, **nights_parameters)
 
-    report_title = f"Event duration (DURATION) per animal over START_TIME"
+    report_title = f"Number of event & event duration per animal over time"
     report_description = f"""
-    Duration of {event_name_italic} event (DURATION) for each animal (RFID)
-    over time (START_TIME) during the interval time window.
+    Duration of <i>{event_name}</i> event (DURATION) for each
+    animal (RFID) over time ({TIME}) during the interval time window.
     <br>
     This graph allows a visualization of the time spent by each animal in this
     event over time.
+    <br>
+    <div style="color: #b30000; background: #fff0f0; border: 1px solid #b30000;
+    padding: 1em; border-radius: 6px; font-weight: bold; display: flex;
+    align-items: center; gap: 0.5em;">
+    <span style="font-size: 1.5em;">&#9888;</span>
+    <span>
+        Data for each animal is always valid.
+        <br>
+        However, if an event involves N animals simultaneously,
+        the total (cumulative) values summed across all RFIDs should be
+        divided by N to obtain the total number of events.
+    </span>
+    </div>
     """
+
     report_manager.add_report(
         name=report_title,
         html_figure=fig,
         top_note=report_description,
-        graph_datas=df[["START_TIME", "DURATION", "RFID"]],
+        graph_datas=df[["RFID", TIME, "EVENT_COUNT", "DURATION"]],
     )
 
     #######################################

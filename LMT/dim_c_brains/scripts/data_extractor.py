@@ -89,33 +89,31 @@ class DataProcessingBinner:
 
         if bin_size is not None:
             if bin_size <= oneMinute:
-                raise ValueError("Bin size must be at least one minute.")
+                raise ValueError("Bin size must be at least one minute")
             self.bin_size = bin_size
         else:
             if self.bin_size is None:
-                raise ValueError("Bin size must be specified.")
+                raise ValueError("Bin size must be specified")
 
         if chunk_size is not None:
             if chunk_size <= oneHour:
-                raise ValueError("Chunk size must be at least one hour.")
+                raise ValueError("Chunk size must be at least one hour")
 
             if chunk_size < self.bin_size:
                 raise ValueError(
-                    "Chunk size must be at least equal to bin size."
+                    "Chunk size must be at least equal to bin size"
                 )
             self.chunk_size = chunk_size
         else:
             if self.chunk_size is None:
-                raise ValueError("Chunk size must be specified.")
+                raise ValueError("Chunk size must be specified")
 
         if start_frame is None or start_frame < 1:
             self.start_frame = 1
         elif start_frame > self.last_frame:
             raise ValueError(
-                f"""start_frame out of range
-                (start_frame = {start_frame}
-                > last_frame = {self.last_frame}).
-                """
+                f"start_frame out of range (start_frame = {start_frame} "
+                f"> last_frame = {self.last_frame})"
             )
         else:
             self.start_frame = start_frame
@@ -124,15 +122,15 @@ class DataProcessingBinner:
             self.end_frame = self.last_frame
         elif end_frame < 1:
             raise ValueError(
-                f"end_frame out of range (end_frame = {end_frame} < 1)."
+                f"end_frame out of range (end_frame = {end_frame} < 1)"
             )
         else:
             self.end_frame = end_frame
 
         if self.start_frame >= self.end_frame:
             raise ValueError(
-                f"""Invalid frame limits (start_frame = {self.start_frame}
-                >= end_frame = {self.end_frame})."""
+                f"Invalid frame limits (start_frame = {self.start_frame} >= "
+                f"end_frame = {self.end_frame})"
             )
 
         self.calculate_bin_df()
@@ -399,7 +397,7 @@ class DataFrameConstructor:
         self,
         connection: Connection,
         time_window: int = 15 * oneMinute,
-        processing_limit: int = oneDay,
+        processing_window: int = oneDay,
         start_frame: int | None = None,
         end_frame: int | None = None,
     ):
@@ -412,16 +410,16 @@ class DataFrameConstructor:
             connection (Connection): SQLite database connection.
             time_window (int, optional): The time window (in frames) for\
                 binning data. Defaults to 15 minutes.
-            processing_limit (int, optional): The size (in frames) of each\
+            processing_window (int, optional): The size (in frames) of each\
             data chunk to load into memory. Defaults to 1 day.
         """
         self.animal_pool = AnimalPool()
         self.animal_pool.loadAnimals(connection)
 
-        self._init_binner(time_window, processing_limit)
-        self.set_frame_limits(start_frame, end_frame)
+        self._init_binner(time_window, processing_window)
+        self.set_analysis_frame_limits(start_frame, end_frame)
 
-    def _init_binner(self, time_window: int, processing_limit: int):
+    def _init_binner(self, time_window: int, processing_window: int):
         """Initialize the DatetimeBinner object to compute the time bins."""
         query = "SELECT FRAMENUMBER, TIMESTAMP FROM FRAME ORDER BY FRAMENUMBER DESC LIMIT 1"
         cursor = self.animal_pool.conn.cursor()
@@ -430,51 +428,62 @@ class DataFrameConstructor:
         cursor.close()
 
         if not result:
-            raise ValueError("No data found in FRAME table.")
+            raise ValueError("No data found in FRAME table")
 
         lastframe, timestamp = result
         self.binner = DataProcessingBinner(
-            lastframe, timestamp, time_window, processing_limit
+            lastframe, timestamp, time_window, processing_window
         )
 
     def set_time_window(self, time_window: int):
-        """Set the time window for data binning."""
+        """Set the time window (in frames) for data binning."""
         self.binner.set_parameters(bin_size=time_window)
 
-    def get_time_window(self) -> int:
-        """Get the current time window for data binning."""
+    def get_bin_window(self) -> int:
+        """Get the current time window (in frames) for data binning."""
         return self.binner.bin_size
 
-    def set_processing_limits(self, processing_limit: int):
-        """Set the processing limit for data chunking."""
-        self.binner.set_parameters(chunk_size=processing_limit)
+    def set_processing_window(self, processing_window: int):
+        """Set the processing window (in frames) for data chunking."""
+        self.binner.set_parameters(chunk_size=processing_window)
 
-    def get_processing_limits(self) -> int:
-        """Get the current processing limit for data chunking."""
+    def get_processing_window(self) -> int:
+        """Get the current processing window (in frames) for data chunking."""
         return self.binner.chunk_size
 
-    def set_frame_limits(
+    def set_analysis_frame_limits(
         self,
         start_frame: int | None = None,
         end_frame: int | None = None,
     ):
-        """Set the frame limits for data processing."""
+        """Set the analysis frame limits for data processing."""
         self.binner.set_parameters(
             start_frame=start_frame, end_frame=end_frame
         )
 
-    def get_frame_limits(self) -> tuple[int, int]:
-        """Get the frame limits."""
+    def set_analysis_time_limits(
+        self,
+        start_time: pd.Timestamp | None = None,
+        end_time: pd.Timestamp | None = None,
+    ):
+        """Set the analysis frame limits for data processing from timestamps."""
+        f_start = self.binner.time_to_frame(start_time) if start_time else None
+        f_end = self.binner.time_to_frame(end_time) if end_time else None
+        self.binner.set_parameters(start_frame=f_start, end_frame=f_end)
+
+    def get_analysis_frame_limits(self) -> tuple[int, int]:
+        """Get the analysis frame limits."""
         return (self.binner.start_frame, self.binner.end_frame)
 
-    def get_time_limits(self) -> tuple[pd.Timestamp, pd.Timestamp]:
-        """Get the frame limits converted in time limits."""
+    def get_analysis_time_limits(self) -> tuple[pd.Timestamp, pd.Timestamp]:
+        """Get the analysis frame limits converted in timestamps."""
         start_time = self.binner.frame_to_time(self.binner.start_frame)
         end_time = self.binner.frame_to_time(self.binner.end_frame)
         return (start_time, end_time)
 
     def get_df_animals(self):
         """Get a DataFrame containing basic information about all animals."""
+        print(f"Creating ANIMALS dataframe")
         df = pd.read_sql("SELECT * FROM ANIMAL", self.animal_pool.conn)
 
         return df
@@ -532,6 +541,10 @@ class DataFrameConstructor:
 
         results = []
         for animal in self.animal_pool.getAnimalList():
+            print(
+                f"Creating EVENT dataframe ({event}) "
+                f"for animal {animal.RFID}"
+            )
 
             counts, durations = self.count_event_per_bin(
                 animal, event, bin_iterator
@@ -569,6 +582,10 @@ class DataFrameConstructor:
         df = None
 
         for bin_iterator in bin_iterators:
+            print(
+                f"EVENT processing ({event}) for frames {bin_iterator[0][0]} to "
+                f"{bin_iterator[-1][1]}"
+            )
             processed_df = self.get_df_event(event, bin_iterator)
             if df is None:
                 df = processed_df
@@ -576,7 +593,7 @@ class DataFrameConstructor:
                 df = pd.concat([df, processed_df], ignore_index=True)
 
         if df is None:
-            raise ValueError("Unable to create a dataframe.")
+            raise ValueError("Unable to create a dataframe")
 
         return self.sort_rfid_as_category(df)
 
@@ -604,9 +621,18 @@ class DataFrameConstructor:
 
         results = []
         for animal in self.animal_pool.getAnimalList():
+            print(f"Creating ACTIVITY dataframe for animal {animal.RFID}")
 
-            counts, durations = self.count_event_per_bin(
+            stop_counts, stop_durations = self.count_event_per_bin(
                 animal, "Stop", bin_iterator
+            )
+
+            move_iso_counts, move_iso_durations = self.count_event_per_bin(
+                animal, "Move isolated", bin_iterator
+            )
+
+            move_inc_counts, move_inc_durations = self.count_event_per_bin(
+                animal, "Move in contact", bin_iterator
             )
 
             distances = animal.getDistancePerBin(
@@ -640,11 +666,24 @@ class DataFrameConstructor:
                         "SPEED_SUM": speeds[i][3],
                         "SPEED_STD": speeds[i][4],
                         "SPEED_SEM": speeds[i][5],
-                        "STOP_COUNT": counts[i],
-                        "STOP_DURATION": durations[i],
-                        "MOVE_DURATION": bin_iterator[i][1]
-                        - bin_iterator[i][0]
-                        - durations[i],
+                        "STOP_COUNT": stop_counts[i],
+                        "STOP_DURATION": stop_durations[i]
+                        / 30
+                        / 60,  # in minutes
+                        "MOVE_COUNT": move_iso_counts[i] + move_inc_counts[i],
+                        "MOVE_DURATION": (
+                            move_iso_durations[i] + move_inc_durations[i]
+                        )
+                        / 30
+                        / 60,  # in minutes
+                        "UNDETECTED_DURATION": (
+                            bin_iterator[i][1]
+                            - bin_iterator[i][0]
+                            - stop_durations[i]
+                            - (move_iso_durations[i] + move_inc_durations[i])
+                        )
+                        / 30
+                        / 60,  # in minutes
                     }
                 )
 
@@ -664,6 +703,10 @@ class DataFrameConstructor:
         df = None
 
         for bin_iterator in bin_iterators:
+            print(
+                f"ACTIVITY processing for frames {bin_iterator[0][0]} to "
+                f"{bin_iterator[-1][1]}"
+            )
             processed_df = self.get_df_activity(
                 bin_iterator, filter_flickering, filter_stop
             )
@@ -673,7 +716,7 @@ class DataFrameConstructor:
                 df = pd.concat([df, processed_df], ignore_index=True)
 
         if df is None:
-            raise ValueError("Unable to create a dataframe.")
+            raise ValueError("Unable to create a dataframe")
 
         return self.sort_rfid_as_category(df)
 
@@ -757,6 +800,7 @@ class DataFrameConstructor:
 
         sensors_data: Dict[str, List[Dict[str, float]]] = {}
         for sensor in sensors:
+            print(f"Creating SENSOR dataframe ({sensor})")
             try:
                 cursor = self.animal_pool.conn.cursor()
                 cursor.execute(f"SELECT {sensor} FROM FRAME" + query_limits)
@@ -766,10 +810,10 @@ class DataFrameConstructor:
                     sensor, frames, values, bin_iterator
                 )
             except:
-                print(f"Cannot access data for {sensor}. Skipping.")
+                print(f"Cannot access data for {sensor} => Skipping")
 
         if not sensors_data.keys():
-            print("No sensor data available.")
+            print("No sensor data available")
             return None
         else:
             for sensor in sensors:
@@ -804,6 +848,10 @@ class DataFrameConstructor:
         df = None
 
         for bin_iterator in bin_iterators:
+            print(
+                f"SENSORS processing for frames {bin_iterator[0][0]} to "
+                f"{bin_iterator[-1][1]}"
+            )
             processed_df = self.get_df_sensors(bin_iterator=bin_iterator)
             if df is None:
                 df = processed_df
@@ -811,7 +859,7 @@ class DataFrameConstructor:
                 df = pd.concat([df, processed_df], ignore_index=True)
 
         if df is None:
-            print("Unable to create the sensors dataframe.")
+            print("Unable to create the sensors dataframe")
             return None
 
         return df

@@ -12,6 +12,55 @@ from plotly.colors import qualitative
 from plotly import graph_objects as go
 
 
+def str_h_min(total_minutes: int | float):
+    """
+    Converts a time duration in minutes to a string formatted as "HH:MM".
+
+    Args:
+        total_minutes (int | float): The total number of minutes to convert.
+    Returns:
+        str: The time formatted as a zero-padded string in "HH:MM" format.
+    Example:
+        >>> str_h_min(135)
+        "02:15"
+    """
+
+    hours = int(total_minutes // 60)
+    minutes = int(total_minutes % 60)
+    return f"{hours:02d}:{minutes:02d}"
+
+
+def floor_power10(x: float | int):
+    """Rounds the input number down to the largest multiple of a power of ten
+    less than or equal to x.
+    if x <= 0, return 1.
+
+    Examples:
+        >>> print(floor_power10(3756))
+        3000
+        >>> print(floor_power10(89))
+        80
+    """
+    if x == 0:
+        floored_value = float(0)
+
+    if x < 0:
+        floored_value = -floor_power10(-x)
+
+    if x >= 1:
+        ten_power = 10 ** (len(str(int(x))) - 1)
+        floored_value: float = (x // ten_power) * ten_power
+    else:
+        _, decimals = str(x).split(".")
+        i = 0
+        while decimals[i] == "0":
+            i += 1
+        ten_power = 10 ** (-(i + 1))
+        floored_value: float = (x // ten_power) * ten_power
+
+    return floored_value
+
+
 def draw_nights(
     fig: go.Figure,
     night_begin: int,
@@ -39,7 +88,7 @@ def draw_nights(
             x_values.extend(trace.x)
 
     if not x_values:
-        print("[WARN] draw_nights: No x values found in figure.")
+        print("[WARN] draw_nights: No x values found in figure")
         return fig
 
     # Convert to pandas Timestamps if needed
@@ -154,7 +203,7 @@ def line_with_shade(
 
     if y_std_col is None and (y_min_col is None or y_max_col is None):
         raise ValueError(
-            "Either y_std_col or both y_min_col and y_max_col must be provided."
+            "Either y_std_col or both y_min_col and y_max_col must be provided"
         )
 
     if y_std_col is not None:

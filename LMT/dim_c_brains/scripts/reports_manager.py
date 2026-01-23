@@ -102,7 +102,7 @@ class HTMLReportManager:
         self,
         name: str,
         figures: List[go.Figure | str],
-        note: str | None = None,
+        top_note: str | None = None,
         max_fig_in_row: int | None = None,
         graph_datas: pd.DataFrame | None = None,
     ):
@@ -135,8 +135,8 @@ class HTMLReportManager:
             cols = min(max_fig_in_row, nb_fig)
             rows = (nb_fig + cols - 1) // cols
 
-        if note is not None:
-            html += note + "<hr>"
+        if top_note is not None:
+            html += top_note + "<hr>"
 
         html += "<div class='container'>"
         for j in range(rows):
