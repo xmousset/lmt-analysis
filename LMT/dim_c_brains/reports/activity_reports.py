@@ -55,7 +55,7 @@ def generate_activity_reports(
 
     NB_ANIMALS = df["RFID"].nunique()
 
-    exp_start_time, exp_end_time = df_constructor.get_analysis_time_limits()
+    exp_start_time, exp_end_time = df_constructor.get_analysis_limits("TIME")
     NB_DAYS = (exp_end_time - exp_start_time).total_seconds() / 3600 / 24
 
     if kwargs.get("first_value_in_graph", True):

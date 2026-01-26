@@ -22,7 +22,8 @@ from dim_c_brains.scripts.tkinter_tools import (
     select_sqlite_file,
     select_folder,
 )
-from dim_c_brains.list_events import ICM_event_dic
+from dim_c_brains.scripts.events_and_modules import events_to_modules
+from dim_c_brains.teams.teams_events_choice import ICM_events_list
 
 from lmtanalysis.Measure import oneMinute, oneDay
 
@@ -87,7 +88,7 @@ def main(
     connection = sqlite3.connect(str(param["file_path"]))
     df_constructor = DataFrameConstructor(
         connection,
-        time_window=param["time_window"],
+        bin_window=param["time_window"],
         processing_window=param["processing_limit"],
     )
 
@@ -100,9 +101,9 @@ def main(
     if isinstance(start, (int, type(None))) and isinstance(
         end, (int, type(None))
     ):
-        df_constructor.set_analysis_frame_limits(
-            start_frame=start,
-            end_frame=end,
+        df_constructor.set_analysis_limits(
+            start=start,
+            end=end,
         )
 
     if isinstance(start, (str, type(None))) and isinstance(
@@ -110,10 +111,7 @@ def main(
     ):
         t_start = None if start is None else pd.Timestamp(start)
         t_end = None if end is None else pd.Timestamp(end)
-        df_constructor.set_analysis_time_limits(
-            start_time=t_start,
-            end_time=t_end,
-        )
+        df_constructor.set_analysis_limits(start=t_start, end=t_end)
 
     df_activity = generate_activity_reports(
         repo_manager, df_constructor, **param

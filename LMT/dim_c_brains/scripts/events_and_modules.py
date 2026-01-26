@@ -1,3 +1,12 @@
+"""
+@creation: 26-01-2026
+@last update: 26-01-2026
+@author: xmousset
+"""
+
+from typing import Dict, List, Literal, Optional, Set
+from types import ModuleType
+
 from lmtanalysis import (
     BuildEventApproachContact,
     BuildEventApproachRear,
@@ -48,8 +57,7 @@ from lmtanalysis import (
     BuildEventWaterPoint,
 )
 
-
-complete_event_list = {
+ALL_EVENTS: Dict[str, Optional[ModuleType | str]] = {
     "Approach": None,
     "Approach contact": BuildEventApproachContact,
     "Approach rear": BuildEventApproachRear,
@@ -135,21 +143,59 @@ complete_event_list = {
 }
 
 
-ICM_event_list = {
-    "Break contact": None,
-    "Contact": None,
-    "Detection": BuildEventDetection,
-    "Flickering": BuildEventFlickering,
-    "Head detected": None,
-    "Move": BuildEventMove,
-    "Move isolated": "Move",
-    "Move in contact": "Move",
-    "Oral-oral Contact": BuildEventOralOralContact,
-    "RFID MATCH": None,
-    "RFID MISMATCH": None,
-    "Side by side Contact": BuildEventSideBySide,
-    "Side by side Contact, opposite way": BuildEventSideBySideOpposite,
-    "Stop": None,
-    "Stop in contact": BuildEventStop,
-    "Stop isolated": BuildEventStop,
-}
+def events_to_modules(
+    events_list: List[str] | Literal["all"] | None,
+) -> Set[ModuleType]:
+    """
+    Get a set of unique modules according to the given list of event names.
+    """
+
+    if events_list is None:
+        return set()
+
+    if isinstance(events_list, list):
+        return get_modules_set(events_list)
+
+    if not isinstance(events_list, str):
+        raise ValueError("type of events_list parameter is not correct.")
+
+    if events_list == "all":
+        events_list = list(ALL_EVENTS.keys())
+        return get_modules_set(events_list)
+
+    return get_modules_set(events_list)
+
+
+def get_module(event_name: str):
+    """
+    Retrieve the module object associated with a given event name.
+
+    This function looks up the provided event name in the ALL_EVENTS mapping.
+    If the mapping returns a string, it recursively resolves the actual module.
+    If the event name is not found or the module is not implemented,
+    returns None.
+
+    Args:
+        event_name (str): The name of the event to look up.
+    Returns:
+        (ModuleType | None): The module object associated with the event name,
+        or None if no corresponding module is found or implemented.
+    Raises:
+        AssertionError: If the resolved module is not None or a ModuleType instance.
+    """
+    module = ALL_EVENTS.get(event_name)
+    if isinstance(module, str):
+        module = get_module(module)
+    assert module is None or isinstance(module, ModuleType)
+    return module
+
+
+def get_modules_set(events_list: List[str]):
+    """Get a set of unique modules associated with a list of event names."""
+    modules_list: List[ModuleType] = []
+    for event in events_list:
+        module = get_module(event)
+        if module is not None:
+            modules_list.append(module)
+    modules_set = set(modules_list)
+    return modules_set

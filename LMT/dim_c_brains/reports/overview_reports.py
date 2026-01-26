@@ -46,7 +46,7 @@ def generate_overview_reports(
 
     NB_ANIMALS = df_animals["RFID"].nunique()
 
-    EXP_START, EXP_END = df_constructor.get_analysis_time_limits()
+    EXP_START, EXP_END = df_constructor.get_analysis_limits("TIME")
     EXP_DURATION = EXP_END - EXP_START
     NB_DAYS = EXP_DURATION.total_seconds() / 3600 / 24
 
