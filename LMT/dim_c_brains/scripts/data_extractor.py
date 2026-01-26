@@ -5,7 +5,7 @@
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Tuple, Union
 
 from sqlite3 import Connection
 
@@ -110,8 +110,15 @@ class DataFrameConstructor:
 
         self.binner.set_parameters(start_frame=f_start, end_frame=f_end)
 
-    def get_analysis_limits(self, unit: Literal["FRAME", "TIME"] = "FRAME"):
-        """Get the analysis frame limits."""
+    def get_analysis_limits(
+        self, unit: Literal["FRAME", "TIME"] = "FRAME"
+    ) -> Tuple[Any, Any]:
+        """Get the analysis frame limits.
+
+        Returns:
+            Tuple: The start and end limits in the specified unit.
+            It is either in frames (int) or timestamps (pd.Timestamp).
+        """
         if unit == "FRAME":
             return (self.binner.start_frame, self.binner.end_frame)
         elif unit == "TIME":
