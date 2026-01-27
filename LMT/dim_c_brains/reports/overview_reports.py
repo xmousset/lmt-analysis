@@ -3,7 +3,7 @@
 """
 
 from pathlib import Path
-from typing import Literal
+from typing import List
 
 import plotly.express as px
 import pandas as pd
@@ -17,7 +17,7 @@ from dim_c_brains.scripts.plotting_functions import (
 )
 
 
-def generate_overview_reports(
+def generic(
     report_manager: HTMLReportManager,
     df_constructor: DataFrameConstructor,
     df_activity: pd.DataFrame | None = None,
@@ -35,6 +35,8 @@ def generate_overview_reports(
     - filter_stop (bool): Whether to filter stop activity.
     - night_begin (int): The hour when the night begins.
     - night_duration (int): The duration of the night in hours.
+    - overview_event_list (List[str] | None): List of events used for overview
+        cards.
     """
 
     report_manager.reports_creation_focus("main")
@@ -129,63 +131,7 @@ def generate_overview_reports(
     #######################################
     if df_activity is not None:
 
-        card = """<div style="flex: 0 0 320px; min-width: 220px;
-        max-width: 400px;"> <div style="margin:0; padding:0;">
-        """
-        filters = []
-        if kwargs.get("filter_flickering", False):
-            filters.append("Flickering")
-        if kwargs.get("filter_stop", False):
-            filters.append("Stop")
-        filters_str = ", ".join(filters) if filters else "no filters applied"
-        card += f"""
-        <p style='margin: 0.5em 0;'><strong>Applied filters</strong>: 
-        {filters_str}
-        </p>
-        """
-
-        mean_distance = round(
-            df_activity["DISTANCE"].sum() / NB_ANIMALS / NB_DAYS / 100
-        )
-        card += f"""
-        <p style='margin: 0.5em 0;'><strong>Distance</strong>: 
-        {mean_distance} <i>m</i> each day</p>
-        """
-
-        mean_speed = round(df_activity["SPEED_MEAN"].mean())
-        card += f"""
-        <p style='margin: 0.5em 0;'><strong>Speed</strong>: 
-        {mean_speed} <i>cm/s</i></p>
-        """
-
-        mean_duration = (
-            df_activity["MOVE_DURATION"].sum() / NB_ANIMALS / NB_DAYS
-        )
-        card += f"""
-        <p style='margin: 0.5em 0;'><strong>Move</strong>: 
-        {str_h_min(mean_duration)} each day
-        </p>
-        """
-
-        mean_duration = (
-            df_activity["STOP_DURATION"].sum() / NB_ANIMALS / NB_DAYS
-        )
-        card += f"""
-        <p style='margin: 0.5em 0;'><strong>Stop</strong>: 
-        {str_h_min(mean_duration)} each day
-        </p>
-        """
-
-        mean_duration = (
-            df_activity["UNDETECTED_DURATION"].sum() / NB_ANIMALS / NB_DAYS
-        )
-        card += f"""
-        <p style='margin: 0.5em 0;'><strong>Undetected</strong>: 
-        {str_h_min(mean_duration)} each day
-        </p>
-        """
-
-        card += "</div></div>"
+        card = get_activity_card(df_activity, NB_ANIMALS, NB_DAYS, **kwargs)
 
         report_manager.add_card(
             name="Animal Average Activity",
@@ -202,28 +148,13 @@ def generate_overview_reports(
     #######################################
     if df_events is not None:
 
-        card = """<div style="flex: 0 0 320px; min-width: 220px;
-        max-width: 400px;"> <div style="margin:0; padding:0;">
-        """
-        for event in df_events["EVENT"].unique():
-            mean_count = round(
-                df_events[df_events["EVENT"] == event]["EVENT_COUNT"].sum()
-                / NB_ANIMALS
-                / NB_DAYS
-            )
-            mean_duration = round(
-                df_events[df_events["EVENT"] == event]["DURATION"].sum()
-                / NB_ANIMALS
-                / NB_DAYS
-            )
-            card += f"""
-            <p style='margin:0;'><strong>{event}</strong></p>
-            <ul style='margin:0;'>
-                <li>{str_h_min(mean_duration)} each day</li>
-                <li>{mean_count} event each day</li>
-            </ul>
-            """
-        card += "</div></div>"
+        overview_event_list = kwargs.get(
+            "overview_event_list", df_events["EVENT"].unique().tolist()
+        )
+
+        card = get_event_card(
+            df_events, overview_event_list, NB_ANIMALS, NB_DAYS
+        )
 
         report_manager.add_card(
             name="Animal Average Events",
@@ -239,51 +170,8 @@ def generate_overview_reports(
     #   Sensors card   #
     #######################################
     if df_sensors is not None:
-        sensors = [
-            "TEMPERATURE",
-            "HUMIDITY",
-            "SOUND",
-            "LIGHTVISIBLE",
-            "LIGHTVISIBLEANDIR",
-        ]
-        sensors_labels = [
-            "Temperature",
-            "Humidity",
-            "Sound",
-            "Light visible",
-            "Light visible + IR",
-        ]
-        units = [
-            "°C",
-            "%",
-            "?",
-            "?",
-            "?",
-        ]
 
-        card = """<div style="flex: 0 0 320px; min-width: 220px;
-        max-width: 400px;"> <div style="margin:0; padding:0;">
-        """
-        for sensor, label, unit in zip(sensors, sensors_labels, units):
-            if (
-                sensor + "_MEAN" not in df_sensors.columns
-                or df_sensors[sensor + "_MEAN"].isnull().all()
-            ):
-                card += (
-                    "<p style='margin: 0.5em 0;'>"
-                    f"{label} data not available"
-                    "</p>"
-                )
-            else:
-                mean = round(df_sensors[sensor + "_MEAN"].mean(), 2)
-                std = round(df_sensors[sensor + "_MEAN"].std(), 2)
-                card += (
-                    f"<p style='margin: 0.5em 0;'>{label} : "
-                    f"<strong>{mean}</strong> <span>&plusmn;</span> "
-                    f"{std} <i>{unit}</i>"
-                    "</p>"
-                )
-        card += "</div></div>"
+        card = get_sensors_card(df_sensors)
 
         report_manager.add_card(
             name="Average Sensors",
@@ -299,3 +187,137 @@ def generate_overview_reports(
     #   Return   #
     #######################################
     return df_animals
+
+
+def get_activity_card(
+    df: pd.DataFrame, NB_ANIMALS: int, NB_DAYS: float, **kwargs
+):
+    card = """<div style="flex: 0 0 320px; min-width: 220px;
+    max-width: 400px;"> <div style="margin:0; padding:0;">
+    """
+    filters = []
+    if kwargs.get("filter_flickering", False):
+        filters.append("Flickering")
+    if kwargs.get("filter_stop", False):
+        filters.append("Stop")
+    filters_str = ", ".join(filters) if filters else "no filters applied"
+    card += f"""
+    <p style='margin: 0.5em 0;'><strong>Applied filters</strong>: 
+    {filters_str}
+    </p>
+    """
+
+    mean_distance = round(df["DISTANCE"].sum() / NB_ANIMALS / NB_DAYS / 100)
+    card += f"""
+    <p style='margin: 0.5em 0;'><strong>Distance</strong>: 
+    {mean_distance} <i>m</i> each day</p>
+    """
+
+    mean_speed = round(df["SPEED_MEAN"].mean())
+    card += f"""
+    <p style='margin: 0.5em 0;'><strong>Speed</strong>: 
+    {mean_speed} <i>cm/s</i></p>
+    """
+
+    mean_duration = df["MOVE_DURATION"].sum() / NB_ANIMALS / NB_DAYS
+    card += f"""
+    <p style='margin: 0.5em 0;'><strong>Move</strong>: 
+    {str_h_min(mean_duration)} each day
+    </p>
+    """
+
+    mean_duration = df["STOP_DURATION"].sum() / NB_ANIMALS / NB_DAYS
+    card += f"""
+    <p style='margin: 0.5em 0;'><strong>Stop</strong>: 
+    {str_h_min(mean_duration)} each day
+    </p>
+    """
+
+    mean_duration = df["UNDETECTED_DURATION"].sum() / NB_ANIMALS / NB_DAYS
+    card += f"""
+    <p style='margin: 0.5em 0;'><strong>Undetected</strong>: 
+    {str_h_min(mean_duration)} each day
+    </p>
+    """
+
+    card += "</div></div>"
+    return card
+
+
+def get_event_card(
+    df: pd.DataFrame,
+    event_list: List[str],
+    NB_ANIMALS: int,
+    NB_DAYS: float,
+):
+    card = """<div style="flex: 0 0 320px; min-width: 220px;
+    max-width: 400px;"> <div style="margin:0; padding:0;">
+    """
+    for event in event_list:
+        mean_count = round(
+            df[df["EVENT"] == event]["EVENT_COUNT"].sum()
+            / NB_ANIMALS
+            / NB_DAYS
+        )
+        mean_duration = round(
+            df[df["EVENT"] == event]["DURATION"].sum() / NB_ANIMALS / NB_DAYS
+        )
+        card += f"""
+        <p style='margin:0;'><strong>{event}</strong></p>
+        <ul style='margin:0;'>
+            <li>{str_h_min(mean_duration)} each day</li>
+            <li>{mean_count} event each day</li>
+        </ul>
+        """
+
+    card += "</div></div>"
+    return card
+
+
+def get_sensors_card(df: pd.DataFrame):
+    sensors = [
+        "TEMPERATURE",
+        "HUMIDITY",
+        "SOUND",
+        "LIGHTVISIBLE",
+        "LIGHTVISIBLEANDIR",
+    ]
+    sensors_labels = [
+        "Temperature",
+        "Humidity",
+        "Sound",
+        "Light visible",
+        "Light visible + IR",
+    ]
+    units = [
+        "°C",
+        "%",
+        "?",
+        "?",
+        "?",
+    ]
+
+    card = """<div style="flex: 0 0 320px; min-width: 220px;
+    max-width: 400px;"> <div style="margin:0; padding:0;">
+    """
+    for sensor, label, unit in zip(sensors, sensors_labels, units):
+        if (
+            sensor + "_MEAN" not in df.columns
+            or df[sensor + "_MEAN"].isnull().all()
+        ):
+            card += (
+                "<p style='margin: 0.5em 0;'>"
+                f"{label} data not available"
+                "</p>"
+            )
+        else:
+            mean = round(df[sensor + "_MEAN"].mean(), 2)
+            std = round(df[sensor + "_MEAN"].std(), 2)
+            card += (
+                f"<p style='margin: 0.5em 0;'>{label} : "
+                f"<strong>{mean}</strong> <span>&plusmn;</span> "
+                f"{std} <i>{unit}</i>"
+                "</p>"
+            )
+    card += "</div></div>"
+    return card

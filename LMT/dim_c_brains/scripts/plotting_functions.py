@@ -30,7 +30,7 @@ def str_h_min(total_minutes: int | float):
     return f"{hours:02d}:{minutes:02d}"
 
 
-def floor_power10(x: float | int):
+def floor_power10(x: float | int) -> float:
     """Rounds the input number down to the largest multiple of a power of ten
     less than or equal to x.
     if x <= 0, return 1.
@@ -41,22 +41,23 @@ def floor_power10(x: float | int):
         >>> print(floor_power10(89))
         80
     """
+    if isinstance(x, int):
+        x = float(x)
+
     if x == 0:
         floored_value = float(0)
-
-    if x < 0:
-        floored_value = -floor_power10(-x)
-
-    if x >= 1:
+    elif x >= 1:
         ten_power = 10 ** (len(str(int(x))) - 1)
         floored_value: float = (x // ten_power) * ten_power
-    else:
+    elif x > 0:
         _, decimals = str(x).split(".")
         i = 0
-        while decimals[i] == "0":
+        while i + 1 < len(decimals) and decimals[i] == "0":
             i += 1
         ten_power = 10 ** (-(i + 1))
         floored_value: float = (x // ten_power) * ten_power
+    else:
+        floored_value = -floor_power10(-x)
 
     return floored_value
 

@@ -16,29 +16,31 @@ class Binner:
         self,
         last_frame: int,
         last_timestamp: int,
-        bin_size: int,
+        fps: int = 30,  # frames per second
+        bin_size: int = 15 * 60 * 30,  # 15 minutes at 30 FPS
         start_frame: int | None = None,
         end_frame: int | None = None,
-        fps: int = 30,
     ):
         """
-        Initialize DatetimeBinner with last FRAMENUMBER and TIMESTAMP of a
+        Initialize Binner with last FRAMENUMBER and TIMESTAMP of a
         SQLite database produce by LMT experiment.
 
         Args:
             last_frame (int): last FRAMENUMBER value in LMT FRAME table.
             last_timestamp (int): TIMESTAMP value of 'last_frame' (in ms).
-            bin_size (int): binning value (in frames).
+            fps (int): frames per second of the experiment (default is 30).
+            bin_size (int | None): binning value (in frames). (default is 15
+                minutes at 30 FPS).
+            start_frame (int | None): starting frame number for binning.
+            end_frame (int | None): ending frame number for binning.
         """
         self.last_frame = last_frame
         self.last_timestamp = last_timestamp
-
         self.set_parameters(bin_size, start_frame, end_frame, fps)
 
         print(f"Binner initialized with:")
         print(f"last FRAMENUMBER: {self.last_frame}")
         print(f"last TIMESTAMP: {self.last_timestamp}")
-        print(f"BIN size: {self.bin_size}")
         print(f"Experiment started at {self.frame_to_time(1)}")
 
     def frame_to_time(self, framenumber: int) -> pd.Timestamp:
@@ -86,9 +88,6 @@ class Binner:
             if bin_size < 60 * self.fps:
                 raise ValueError("Bin size must be at least 1 minute")
             self.bin_size = bin_size
-        else:
-            if self.bin_size is None:
-                raise ValueError("Bin size must be specified")
 
         if start_frame is None or start_frame < 1:
             self.start_frame = 1

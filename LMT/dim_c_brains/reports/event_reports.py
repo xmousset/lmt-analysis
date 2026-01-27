@@ -12,9 +12,10 @@ from dim_c_brains.scripts.plotting_functions import (
     draw_nights,
     line_with_shade,
 )
+from dim_c_brains.reports.overview_reports import get_event_card
 
 
-def generate_event_reports(
+def generic(
     report_manager: HTMLReportManager,
     df_constructor: DataFrameConstructor,
     event_name: str,
@@ -99,19 +100,7 @@ def generate_event_reports(
     #   Event overview card   #
     #######################################
 
-    card = """<div style="flex: 0 0 320px; min-width: 220px;
-    max-width: 400px;"> <div style="margin:0; padding:0;">
-    """
-    mean_count = round(df["EVENT_COUNT"].sum() / NB_ANIMALS / NB_DAYS)
-    mean_duration = round(df["DURATION"].sum() / NB_ANIMALS / NB_DAYS)
-    card += f"""
-    <p style='margin:0;'><strong>{event_name}</strong></p>
-    <ul style='margin:0;'>
-        <li>{str_h_min(mean_duration)} each day</li>
-        <li>{mean_count} event each day</li>
-    </ul>
-    """
-    card += "</div></div>"
+    card = get_event_card(df, [event_name], NB_ANIMALS, NB_DAYS)
 
     report_manager.add_card(
         name="Animal Average Overview",
@@ -170,7 +159,7 @@ def generate_event_reports(
     figs = []
 
     df_plot = (
-        df.groupby("RFID")[["EVENT_COUNT", "DURATION"]]
+        df.groupby("RFID", observed=True)[["EVENT_COUNT", "DURATION"]]
         .agg(["mean", "std"])
         .reset_index()
     )
@@ -244,7 +233,9 @@ def generate_event_reports(
         )
 
     df_plot = (
-        df_plot.groupby(["RFID", "HOUR"])[["EVENT_COUNT", "DURATION"]]
+        df_plot.groupby(["RFID", "HOUR"], observed=True)[
+            ["EVENT_COUNT", "DURATION"]
+        ]
         .sum()
         .reset_index()
         .sort_values(by="HOUR")

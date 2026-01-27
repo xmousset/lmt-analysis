@@ -12,9 +12,10 @@ from dim_c_brains.scripts.plotting_functions import (
     draw_nights,
     line_with_shade,
 )
+from dim_c_brains.reports.overview_reports import get_activity_card
 
 
-def generate_activity_reports(
+def generic(
     report_manager: HTMLReportManager,
     df_constructor: DataFrameConstructor,
     **kwargs,
@@ -108,55 +109,7 @@ def generate_activity_reports(
     #   Activity overview card   #
     #######################################
 
-    card = """<div style="flex: 0 0 320px; min-width: 220px;
-    max-width: 400px;"> <div style="margin:0; padding:0;">
-    """
-    filters = []
-    if kwargs.get("filter_flickering", False):
-        filters.append("Flickering")
-    if kwargs.get("filter_stop", False):
-        filters.append("Stop")
-    filters_str = ", ".join(filters) if filters else "no filters applied"
-    card += f"""
-    <p style='margin: 0.5em 0;'><strong>Applied filters</strong>: 
-    {filters_str}
-    </p>
-    """
-
-    mean_distance = round(df["DISTANCE"].sum() / NB_ANIMALS / NB_DAYS / 100)
-    card += f"""
-    <p style='margin: 0.5em 0;'><strong>Distance</strong>: 
-    {mean_distance} <i>m</i> each day</p>
-    """
-
-    mean_speed = round(df["SPEED_MEAN"].mean())
-    card += f"""
-    <p style='margin: 0.5em 0;'><strong>Speed</strong>: 
-    {mean_speed} <i>cm/s</i></p>
-    """
-
-    mean_duration = df["MOVE_DURATION"].sum() / NB_ANIMALS / NB_DAYS
-    card += f"""
-    <p style='margin: 0.5em 0;'><strong>Move</strong>: 
-    {str_h_min(mean_duration)} each day
-    </p>
-    """
-
-    mean_duration = df["STOP_DURATION"].sum() / NB_ANIMALS / NB_DAYS
-    card += f"""
-    <p style='margin: 0.5em 0;'><strong>Stop</strong>: 
-    {str_h_min(mean_duration)} each day
-    </p>
-    """
-
-    mean_duration = df["UNDETECTED_DURATION"].sum() / NB_ANIMALS / NB_DAYS
-    card += f"""
-    <p style='margin: 0.5em 0;'><strong>Undetected</strong>: 
-    {str_h_min(mean_duration)} each day
-    </p>
-    """
-
-    card += "</div></div>"
+    card = get_activity_card(df, NB_ANIMALS, NB_DAYS, **kwargs)
 
     report_manager.add_card(
         name="Animal Average Overview",

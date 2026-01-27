@@ -14,7 +14,7 @@ from dim_c_brains.scripts.plotting_functions import (
 )
 
 
-def generate_sensors_reports(
+def generic(
     report_manager: HTMLReportManager,
     df_constructor: DataFrameConstructor,
     **kwargs,

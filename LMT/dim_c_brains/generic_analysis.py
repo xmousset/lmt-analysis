@@ -2,48 +2,47 @@
 @author: xmousset
 """
 
-import sys
 import sqlite3
-from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
-lmt_analysis_path = Path(__file__).parent.parent
-sys.path.append(lmt_analysis_path.as_posix())
-
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
 from dim_c_brains.scripts.data_extractor import DataFrameConstructor
-from dim_c_brains.scripts.event_reports import generate_event_reports
-from dim_c_brains.scripts.sensors_reports import generate_sensors_reports
-from dim_c_brains.scripts.activity_reports import generate_activity_reports
-from dim_c_brains.scripts.overview_reports import generate_overview_reports
+from dim_c_brains.scripts.rebuild_events import ReBuildEvents
+from dim_c_brains.reports import (
+    event_reports,
+    sensors_reports,
+    activity_reports,
+    overview_reports,
+)
 from dim_c_brains.scripts.tkinter_tools import (
     select_sqlite_file,
     select_folder,
 )
-from dim_c_brains.scripts.events_and_modules import events_to_modules
-from dim_c_brains.teams.teams_events_choice import ICM_events_list
 
 from lmtanalysis.Measure import oneMinute, oneDay
 
 
 def main(
+    rebuild_events: bool = False,
     start: int | str | None = None,
     end: int | str | None = None,
     **kwargs: Any,
 ):
     """
-    Runs the main analysis workflow for LMT data, generating HTML reports and saving them to the selected output folder.
+    Runs the main analysis workflow for LMT data, generating HTML reports and
+    saving them to the selected output folder.
+    *(timestamp string example: "2026-01-01 00:00:00")*
 
     Parameters
     ----------
     start : int or str or None, optional
         Start of the analysis period. Can be an integer frame number or a
-        timestamp string. Defaults to None. (e.g., "2026-01-01 00:00:00")
+        timestamp string. Defaults to None.
     end : int or str or None, optional
         End of the analysis period. Can be an integer frame number or a
-        timestamp string. Defaults to None. (e.g., "2026-01-01 00:00:00")
+        timestamp string. Defaults to None.
 
     Other Parameters
     ----------------
@@ -51,23 +50,28 @@ def main(
         Path to the SQLite data file. If not provided, prompts user to select
         file.
     time_window : int, optional
-        Time window in seconds for binning data. Defaults to 15 minutes.
+        Time window in seconds for binning data. Defaults to 15 *min*
+        (27 000 *frames*).
     processing_limit : int, optional
-        Maximum processing duration in seconds. Defaults to one day.
+        Maximum processing duration in seconds. Defaults to 1 *day* (2 592 000
+        *frames*).
     night_begin : int, optional
-        Hour when the night begins. Defaults to 20.
+        Hour when the night begins. Defaults to 20 (8 *p.m.*).
     night_duration : int, optional
-        Duration of the night in hours. Defaults to 12.
+        Duration of the night in hours. Defaults to 12 (8 *p.m.* to 8 *a.m.*).
     filter_flickering : bool, optional
         Whether to filter flickering activity. Defaults to False.
     filter_stop : bool, optional
         Whether to filter stop activity. Defaults to False.
     event_list : list of str, optional
-        List of event names to analyze. If None, no event analysis is
-        performed. Defaults to None.
+        List of event names to analyze. By default, no event analysis is
+        performed (None).
+    overview_event_list : list of str, optional
+        List of event names for overview reports. By default, no overview event
+        analysis is performed (None).
     output_folder : Path or None, optional
-        Folder to save the output reports. If None, prompts user to select
-        folder. Defaults to None.
+        Folder to save the output reports. By default, prompts user to select
+        folder (None).
     """
 
     param = {}
@@ -81,11 +85,22 @@ def main(
     param["filter_flickering"] = kwargs.get("filter_flickering", False)
     param["filter_stop"] = kwargs.get("filter_stop", False)
     param["event_list"] = kwargs.get("event_list", None)
+    param["overview_event_list"] = kwargs.get("overview_event_list", None)
     param["output_folder"] = kwargs.get("output_folder", None)
 
     repo_manager = HTMLReportManager()
 
     connection = sqlite3.connect(str(param["file_path"]))
+
+    if rebuild_events:
+        if param["event_list"] is None:
+            raise ValueError("event_list must be provided to rebuild events.")
+        rebuilder = ReBuildEvents(
+            connection, str(param["file_path"]), param["event_list"]
+        )
+        rebuilder.set_events_to_rebuild("missing")
+        rebuilder.rebuild()
+
     df_constructor = DataFrameConstructor(
         connection,
         bin_window=param["time_window"],
@@ -113,7 +128,7 @@ def main(
         t_end = None if end is None else pd.Timestamp(end)
         df_constructor.set_analysis_limits(start=t_start, end=t_end)
 
-    df_activity = generate_activity_reports(
+    df_activity = activity_reports.generic(
         repo_manager, df_constructor, **param
     )
 
@@ -125,7 +140,7 @@ def main(
             df_events = pd.concat(
                 [
                     df_events,
-                    generate_event_reports(
+                    event_reports.generic(
                         repo_manager,
                         df_constructor,
                         event_name=event,
@@ -134,11 +149,9 @@ def main(
                 ]
             )
 
-    df_sensors = generate_sensors_reports(
-        repo_manager, df_constructor, **param
-    )
+    df_sensors = sensors_reports.generic(repo_manager, df_constructor, **param)
 
-    df_mice = generate_overview_reports(
+    df_mice = overview_reports.generic(
         repo_manager,
         df_constructor,
         df_activity=df_activity,
@@ -160,61 +173,3 @@ def main(
             "analysis" + param["file_path"].stem
         )
         print(f"Save analysis to default folder\n{output_folder}")
-
-
-def get_ICM_param():
-    data_path = (
-        Path.home()
-        / "Syncnot"
-        / "lmt-analysis"
-        / "LMT"
-        / "dim_c_brains"
-        / "res"
-        / "data"
-        / "groupe1-cage1-LMT1.sqlite"
-    )
-
-    icm_param = {
-        "file_path": data_path,
-        "time_window": 15 * oneMinute,
-        "processing_limit": oneDay,
-        "night_begin": 20,
-        "night_duration": 12,
-        "filter_flickering": True,
-        "filter_stop": True,
-        "event_list": ["Oral-oral Contact"],
-        "output_folder": Path.home() / "Desktop" / "ICM_analysis",
-    }
-    return icm_param
-
-
-def get_test_param():
-    example_path = Path(__file__).parent / "examples"
-    dataset = (
-        example_path / "20180110_validation_4_ind_Experiment_6644_e.sqlite"
-    )
-
-    test_param = {
-        "file_path": dataset,
-        "time_window": 3 * oneMinute,
-        "processing_limit": oneDay,
-        "night_begin": 20,
-        "night_duration": 12,
-        "filter_flickering": False,
-        "filter_stop": False,
-        "event_list": [
-            "Oral-oral Contact",
-            "Move isolated",
-        ],
-        "output_folder": Path.home() / "Desktop" / "test_analysis",
-    }
-
-    return test_param
-
-
-if __name__ == "__main__":
-
-    # PARAM = get_ICM_param()
-    PARAM = get_test_param()
-
-    main(**PARAM)

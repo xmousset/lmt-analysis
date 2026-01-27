@@ -143,7 +143,7 @@ ALL_EVENTS: Dict[str, Optional[ModuleType | str]] = {
 }
 
 
-def events_to_modules(
+def get_modules(
     events_list: List[str] | Literal["all"] | None,
 ) -> Set[ModuleType]:
     """

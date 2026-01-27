@@ -28,8 +28,8 @@ class DataFrameConstructor:
         connection: Connection,
         bin_window: int = 15 * oneMinute,
         processing_window: int = oneDay,
-        start_frame: int | None = None,
-        end_frame: int | None = None,
+        start: int | pd.Timestamp | None = None,
+        end: int | pd.Timestamp | None = None,
     ):
         """
         instanciate pandas dataframes constructor. All datas will be binned
@@ -46,11 +46,12 @@ class DataFrameConstructor:
         self.animal_pool = AnimalPool()
         self.animal_pool.loadAnimals(connection)
 
-        self._init_binner(bin_window)
+        self._init_binner()
+        self.set_bin_window(bin_window)
+        self.set_analysis_limits(start, end)
         self.processing_window = processing_window
-        self.set_analysis_limits(start_frame, end_frame)
 
-    def _init_binner(self, bin_window: int):
+    def _init_binner(self):
         """Initialize the DatetimeBinner object to compute the time bins."""
         query = "SELECT FRAMENUMBER, TIMESTAMP FROM FRAME ORDER BY FRAMENUMBER DESC LIMIT 1"
         cursor = self.animal_pool.conn.cursor()
@@ -62,7 +63,7 @@ class DataFrameConstructor:
             raise ValueError("No data found in FRAME table")
 
         lastframe, timestamp = result
-        self.binner = Binner(lastframe, timestamp, bin_window)
+        self.binner = Binner(lastframe, timestamp)
 
     def set_bin_window(self, bin_window: int):
         """Set the bin window (in *frames*) for data binning."""
