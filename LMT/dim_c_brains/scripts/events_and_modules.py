@@ -143,29 +143,6 @@ ALL_EVENTS: Dict[str, Optional[ModuleType | str]] = {
 }
 
 
-def get_modules(
-    events_list: List[str] | Literal["all"] | None,
-) -> Set[ModuleType]:
-    """
-    Get a set of unique modules according to the given list of event names.
-    """
-
-    if events_list is None:
-        return set()
-
-    if isinstance(events_list, list):
-        return get_modules_set(events_list)
-
-    if not isinstance(events_list, str):
-        raise ValueError("type of events_list parameter is not correct.")
-
-    if events_list == "all":
-        events_list = list(ALL_EVENTS.keys())
-        return get_modules_set(events_list)
-
-    return get_modules_set(events_list)
-
-
 def get_module(event_name: str):
     """
     Retrieve the module object associated with a given event name.
@@ -190,12 +167,13 @@ def get_module(event_name: str):
     return module
 
 
-def get_modules_set(events_list: List[str]):
+def get_modules(event_list: List[str]):
     """Get a set of unique modules associated with a list of event names."""
-    modules_list: List[ModuleType] = []
-    for event in events_list:
+    module_list: List[ModuleType] = []
+
+    for event in event_list:
         module = get_module(event)
         if module is not None:
-            modules_list.append(module)
-    modules_set = set(modules_list)
-    return modules_set
+            module_list.append(module)
+    module_set = set(module_list)
+    return module_set

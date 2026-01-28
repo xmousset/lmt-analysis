@@ -16,6 +16,7 @@ from dim_c_brains.scripts.events_and_modules import (
     get_modules,
 )
 from dim_c_brains.scripts.binner import Binner
+from dim_c_brains.LMT_analyser import RebuildOption
 
 from lmtanalysis.Animal import AnimalPool
 from lmtanalysis.AnimalType import AnimalType
@@ -31,25 +32,47 @@ from lmtanalysis.EventTimeLineCache import (
 from psutil import virtual_memory
 
 
-class ReBuildEvents:
+class EventsRebuilder:
     def __init__(
         self,
         connection: Connection,
         file: Any,
-        list_events: List[str] | Literal["all", "missing"] | None = None,
+        rebuild_option: RebuildOption,
+        list_events: List[str] | None = None,
         processing_window: int = oneDay,
         start: int | pd.Timestamp | None = None,
         end: int | pd.Timestamp | None = None,
         animal_type: AnimalType = AnimalType.MOUSE,
     ):
+        """Class to handle the rebuilding of events in the database.
+
+        Args:
+            connection (Connection): SQLite database connection.
+            file (Any): The file associated with the database.
+            rebuild_option (RebuildOption): Option for rebuilding events.
+            list_events (List[str] | None): List of event names to rebuild.
+                Depends on the 'rebuild_option' parameter.
+            processing_window (int): Processing window size in frames.
+                Default is one day (in frames).
+            start (int | pd.Timestamp | None): Start limit for analysis.
+                Can be in frames (int) or timestamps (pd.Timestamp).
+            end (int | pd.Timestamp | None): End limit for analysis.
+                Can be in frames (int) or timestamps (pd.Timestamp).
+            animal_type (AnimalType): Type of animal for event processing.
+        """
         self.conn = connection
         self.file = file
-        self.set_events_to_rebuild(list_events)
         self.animal_type = animal_type
+
+        self.database_events = self.get_database_events()
+
+        self.list_events: List[str] = []
+        self.set_rebuild_option(rebuild_option)
+        self.set_events_to_rebuild(list_events)
+
         self._init_binner()
         self.set_processing_window(processing_window)
         self.set_analysis_limits(start, end)
-        self.database_events = self.get_database_events()
 
     def get_database_events(self) -> Set[str]:
         """Get the list of existing events in the SQLite database."""
@@ -105,26 +128,41 @@ class ReBuildEvents:
         else:
             raise ValueError("Invalid unit. Choose 'FRAME' or 'TIME'.")
 
-    def set_events_to_rebuild(
-        self, list_events: List[str] | Literal["all", "missing"] | None = None
-    ):
-        """Sets the list of events to be rebuilt."""
-        if list_events is None:
-            self.list_events: List[str] = []
-            self.list_BuildEvent: Set[ModuleType] = set()
-            return
+    def set_rebuild_option(self, rebuild_option: RebuildOption):
+        """Set the rebuild option for event rebuilding.
 
-        if isinstance(list_events, str):
-            if list_events == "missing":
-                self.list_events = list(self.get_missing_events_in_database())
-            elif list_events == "all":
-                self.list_events = list(ALL_EVENTS.keys())
-            else:
-                raise ValueError(
-                    f"Invalid string value for list_events: {list_events}"
-                )
-        else:
-            self.list_events = list_events
+        Args:
+            rebuild_option (RebuildOption): The option for rebuilding events.
+                - ALL: rebuild all events that exist for LMT.
+                - MISSING: rebuild only missing events in database.
+                - ANALYSIS: rebuild analysis-related events (those in
+                `LMTAnalyser.events_to_analyse`).
+                - CUSTOM: rebuild only events specified in
+                `events_to_rebuild`.
+        """
+        if not isinstance(rebuild_option, RebuildOption):
+            raise ValueError(
+                f"Invalid rebuild_option: {rebuild_option}. "
+                f"Must be an instance of RebuildOption Enum."
+            )
+        self.rebuild_option = rebuild_option
+        self.set_events_to_rebuild()
+
+    def set_events_to_rebuild(self, list_events: List[str] | None = None):
+        """Set the list of events to be rebuilt."""
+        if (
+            self.rebuild_option == RebuildOption.CUSTOM
+            or self.rebuild_option == RebuildOption.ANALYSIS
+        ):
+            if list_events is not None:
+                self.list_events = list_events
+
+        if self.rebuild_option == RebuildOption.MISSING:
+            self.list_events = list(self.get_missing_events_in_database())
+
+        if self.rebuild_option == RebuildOption.ALL:
+            self.list_events = list(ALL_EVENTS.keys())
+
         self.list_BuildEvent = get_modules(self.list_events)
 
     def set_analysis_limits(
@@ -178,7 +216,7 @@ class ReBuildEvents:
         """Flush all events in the database using all existing modules."""
         chrono = Chronometer("Flushing all events")
 
-        for module in get_modules("all"):
+        for module in get_modules(list(ALL_EVENTS.keys())):
             module.flush(self.conn)
 
         chrono.printTimeInS()
@@ -197,7 +235,7 @@ class ReBuildEvents:
     def rebuild_window(self, window: Tuple[int, int]):
         """Rebuild events in the specified time window using the specified
         modules."""
-        tmin = self.binner.frame_to_time(window[0])
+
         CheckWrongAnimal.check(self.conn, window[0], window[1])
 
         if not self.list_BuildEvent:
@@ -229,7 +267,7 @@ class ReBuildEvents:
         """Rebuild events in the database from 'self.start' to 'self.end' using
         the specified modules."""
         if not self.list_BuildEvent:
-            print("No events to process in this window.")
+            print("No events to process in the database.")
             return
 
         self.check_memory()
