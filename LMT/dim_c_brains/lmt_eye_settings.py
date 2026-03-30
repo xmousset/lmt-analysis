@@ -52,6 +52,10 @@ class LMTEYESettings:
         Whether to rebuild all the events to analyse in the database before
         analysis. If False, only missing events will be rebuilt. Defaults to
         False.
+    round_hour_bins : bool, optional
+        Whether to round the time bins to the nearest hour. If False, the time
+        bins will be based on the first timestamp of the recording. Defaults to
+        True.
     time_window : int, optional
         Time window for data binning in *frames*. Defaults to *27 000 (= 15
         min)*.
@@ -83,6 +87,7 @@ class LMTEYESettings:
             "processing_limits": (None, None),
             "processing_window": oneDay,
             "rebuild_events": False,
+            "round_hour_bins": True,
             "time_window": 15 * oneMinute,
             "UTC_offset": 1.0,
         }
@@ -163,6 +168,7 @@ class LMTEYESettings:
             int | pd.Timestamp | None, int | pd.Timestamp | None
         ] = default_settings["processing_limits"]
         self.rebuild_events: bool = default_settings["rebuild_events"]
+        self.round_hour_bins: bool = default_settings["round_hour_bins"]
         self.time_window: int = default_settings["time_window"]
         self.UTC_offset: float = default_settings["UTC_offset"]
 

@@ -12,7 +12,7 @@ from datetime import datetime
 #   APP Creation Parameters   #
 #######################################
 APP_CREATION = False
-APP_VERSION = "1.2"
+APP_VERSION = "1.3"
 APP_RELEASE = "2026-03-16"
 APP_ICON = Path(__file__).parent / "res" / "lmt_eye_icon.png"
 # command for executable creation (run in terminal at project root):
@@ -798,6 +798,18 @@ class SettingsWindow(QDialog):
             )
         )
 
+        # round_hour_bins
+        self.round_hour_bins_cb = QCheckBox()
+        self.round_hour_bins_cb.setToolTip(
+            "Whether to round the hour bins for the analysis.\n"
+            "If enabled, the first bin will be shorter and subsequent bins "
+            "will start at round hours\n (e.g. if bin size is 15 minutes, "
+            "when enabled the bins will be 12h00, 12h15, 12h30, etc\n and "
+            "when disabled the bins depend on the start of the experiment "
+            "like 12h07, 12h22, 12h37, etc.)."
+        )
+        self.round_hour_bins_cb.setChecked(self.settings.round_hour_bins)
+
         # fps
         self.fps_spin = QSpinBox()
         self.fps_spin.setToolTip(
@@ -845,6 +857,9 @@ class SettingsWindow(QDialog):
         form.addRow("Processing", proc_row)
 
         fps_row = QHBoxLayout()
+        fps_row.addStretch(1)
+        fps_row.addWidget(QLabel("Round hour bins:"))
+        fps_row.addWidget(self.round_hour_bins_cb)
         fps_row.addStretch(1)
         fps_row.addWidget(QLabel("FPS:"))
         fps_row.addWidget(self.fps_spin)
@@ -1077,6 +1092,7 @@ class SettingsWindow(QDialog):
         self._on_time_frames_changed()  # to update minutes accordingly
         self.process_window_frames.setValue(self.settings.processing_window)
         self._on_process_frames_changed()  # to update hours accordingly
+        self.round_hour_bins_cb.setChecked(self.settings.round_hour_bins)
         self.fps_spin.setValue(self.settings.fps)
         self.night_begin_spin.setValue(self.settings.night_begin)
         self.night_duration_spin.setValue(self.settings.night_duration)
@@ -1101,6 +1117,7 @@ class SettingsWindow(QDialog):
         self.settings.night_begin = self.night_begin_spin.value()
         self.settings.night_duration = self.night_duration_spin.value()
         self.settings.rebuild_events = self.rebuild_box.isChecked()
+        self.settings.round_hour_bins = self.round_hour_bins_cb.isChecked()
         self.settings.UTC_offset = self.utc_offset_spin.value()
         self._update_custom_events()
 

@@ -41,6 +41,7 @@ class Binner:
         last_frame: int,
         last_timestamp: int,
         bin_size: int | pd.Timedelta = 15 * 60 * 30,  # 15 minutes at 30 FPS
+        round_hour_bins: bool = True,
         start: int | pd.Timestamp | None = None,
         end: int | pd.Timestamp | None = None,
         fps: int = 30,  # frames per second
@@ -71,7 +72,7 @@ class Binner:
         self.last_frame = last_frame
         self.last_timestamp = last_timestamp
         self.UTC_offset = pd.Timedelta(hours=UTC_offset)
-        self.set_parameters(bin_size, start, end, fps)
+        self.set_parameters(bin_size, round_hour_bins, start, end, fps)
 
         print(f"Binner initialized with:")
         print(f"last FRAMENUMBER: {self.last_frame}")
@@ -99,6 +100,7 @@ class Binner:
     def set_parameters(
         self,
         bin_size: int | pd.Timedelta | None = None,
+        round_hour_bins: bool | None = None,
         start: int | pd.Timestamp | None = None,
         end: int | pd.Timestamp | None = None,
         fps: int | None = None,
@@ -127,6 +129,9 @@ class Binner:
             if bin_size < 1:
                 raise ValueError("bin_size must be at least 1 frame")
             self.bin_size = bin_size
+
+        if round_hour_bins is not None:
+            self.round_hour_bins = round_hour_bins
 
         if isinstance(start, pd.Timestamp):
             start = self.time_to_frame(start)
@@ -161,11 +166,14 @@ class Binner:
         """Calculate the bin dataframe with START_FRAME, END_FRAME, START_TIME,
         and END_TIME as columns."""
 
-        # get the first bin starting frame number
-        # it is a negative value because bins start at round hours
-        dt_0 = self.frame_to_time(self.bin_size)
-        dt_bin_0 = dt_0.floor(f"{self.bin_size // (60 * self.fps)}min")
-        start_frame_bin_1 = self.time_to_frame(dt_bin_0)
+        # get the starting frame number of the first bin
+        if self.round_hour_bins:
+            # it is a negative integer if bins start at round hours
+            dt_0 = self.frame_to_time(self.bin_size)
+            dt_bin_0 = dt_0.floor(f"{self.bin_size // (60 * self.fps)}min")
+            start_frame_bin_1 = self.time_to_frame(dt_bin_0)
+        else:
+            start_frame_bin_1 = 1
 
         # calculate starting frame of each bins until last frame
         bin_start_frames: List[int] = []
