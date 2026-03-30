@@ -4,6 +4,7 @@
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
 from dim_c_brains.scripts.dataframe_constructor import DataFrameConstructor
@@ -46,6 +47,8 @@ def generic_reports(
             the processing limits or check the database connection.""",
         )
         return None
+
+    df["MIN_FROM_START"] = df["FRAME"] / df_constructor.binner.fps / 60
 
     #######################################
     #   Constants & Parameters   #
@@ -117,7 +120,7 @@ def generic_reports(
     #   Density contour heat map   #
     #######################################
     figs = []
-    for i, rfid in enumerate(df["RFID"].cat.categories):
+    for i, rfid in enumerate(plot_parameters["category_orders"]["RFID"]):
         df_animal = df[df["RFID"] == rfid]
         fig = px.density_contour(
             df_animal,
@@ -160,9 +163,42 @@ def generic_reports(
     )
 
     #######################################
+    #   Trajectory line plot   #
+    #######################################
+
+    figs = []
+    for i, rfid in enumerate(plot_parameters["category_orders"]["RFID"]):
+        df_animal = df[df["RFID"] == rfid]
+        fig = px.scatter(
+            df_animal,
+            x="X",
+            y="Y",
+            color="MIN_FROM_START",
+            color_continuous_scale="Plotly3",
+            labels={"MIN_FROM_START": "Time (min)"},
+        )
+        fig.update_traces(marker=dict(opacity=0.1, size=3))
+        fig.update_layout(
+            width=400,
+            height=400,
+            margin=dict(l=20, r=20, t=50, b=20),
+            title=f"RFID: {rfid}",
+            coloraxis_colorbar_title_text="Time",
+            plot_bgcolor="rgba(0,0,0,0)",
+        )
+        figs.append(fig)
+
+    report_manager.add_multi_fig_report(
+        name="Animal trajectory line plot",
+        figures=figs,
+        top_note="Trajectory lines colored by time progression",
+        max_fig_in_row=4,
+    )
+
+    #######################################
     #   TABLE   #
     #######################################
-    # report_manager.add_table_headers(name="complete table", df=df)=
+    # report_manager.add_table_headers(name="complete table", df=df)
 
     ################
     #   Return   #

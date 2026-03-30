@@ -44,6 +44,8 @@ class DataFrameConstructor:
             bin_window (int | pd.Timedelta, optional): The bin window (in
                 frames or pandas.Timedelta) for binning data.
                 Defaults to 15 minutes.
+            round_hour_bins (bool, optional): Whether to start bins at round
+                hours. Defaults to True.
             processing_window (int | pd.Timedelta, optional): The size (in
                 frames or pandas.Timedelta) of each data chunk to load into
                 memory. Defaults to 1 day.
@@ -375,7 +377,7 @@ class DataFrameConstructor:
 
         return self.sort_rfid_as_category(df)
 
-    def get_df_trajectory(self):
+    def get_df_trajectory(self) -> pd.DataFrame | None:
         """Get a DataFrame containing trajectory data for all animals.
         (distance are in cm)
         """
@@ -401,7 +403,7 @@ class DataFrameConstructor:
                     f"Creating TRAJECTORY dataframe for animal {animal.RFID}"
                 )
 
-                xList, yList, fList = animal.getTrajectoryData()
+                xList, yList, fList = animal.get_trajectory()
 
                 for i in range(len(xList)):
                     if np.isnan(xList[i]).any() or np.isnan(yList[i]).any():
@@ -413,9 +415,7 @@ class DataFrameConstructor:
                             "FRAME": fList[i],
                             "X": np.mean(xList[i]),
                             "Y": np.mean(yList[i]),
-                            "TIME": self.binner.frame_to_time(
-                                fList[i],
-                            ),
+                            "TIME": self.binner.frame_to_time(fList[i]),
                         }
                     )
 
