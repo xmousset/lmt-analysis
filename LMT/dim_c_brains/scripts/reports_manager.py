@@ -142,13 +142,13 @@ class HTMLReportManager:
         if top_note is not None:
             html += top_note + "<hr>"
 
-        html += "<div class='container'>"
+        html += "<div class='container-fluid'>"
         for j in range(rows):
-            html += "<div class='row'>"
+            html += "<div class='row g-0'>"
             for i in range(cols):
                 idx = j * cols + i
                 if idx < nb_fig:
-                    html += f"<div class='col-{12 // cols}'>"
+                    html += f"<div class='col-{12 // cols} p-0'>"
                     figure = figures[idx]
                     if isinstance(figure, str):
                         html += figure

@@ -26,6 +26,7 @@ class DataFrameConstructor:
         self,
         connection: Connection,
         bin_window: int = 15 * oneMinute,
+        round_hour_bins: bool = True,
         processing_window: int | pd.Timedelta = oneDay,
         processing_limits: tuple[
             int | pd.Timestamp | None, int | pd.Timestamp | None
@@ -64,6 +65,7 @@ class DataFrameConstructor:
             last_framenumber,
             last_timestamp,
             bin_size=bin_window,
+            round_hour_bins=round_hour_bins,
             start=processing_limits[0],
             end=processing_limits[1],
             fps=fps,
@@ -362,6 +364,63 @@ class DataFrameConstructor:
             processed_df = self.get_df_activity(
                 bin_iterator, filter_flickering, filter_stop
             )
+            if df is None:
+                df = processed_df
+            else:
+                df = pd.concat([df, processed_df], ignore_index=True)
+
+        if df is None:
+            print("Unable to create the activity dataframe")
+            return None
+
+        return self.sort_rfid_as_category(df)
+
+    def get_df_trajectory(self):
+        """Get a DataFrame containing trajectory data for all animals.
+        (distance are in cm)
+        """
+
+        split_iterator = self.binner.split_iterator_in_chunks(
+            self.processing_window, self.binner.get_bin_iterator()
+        )
+        df = None
+
+        for bin_iterator in split_iterator:
+            print(
+                f"TRAJECTORY processing for frames {bin_iterator[0][0]} to "
+                f"{bin_iterator[-1][1]}"
+            )
+            self.animal_pool.loadDetection(
+                start=bin_iterator[0][0],
+                end=bin_iterator[-1][1],
+                lightLoad=True,
+            )
+            results = []
+            for animal in self.animal_pool.getAnimalList():
+                print(
+                    f"Creating TRAJECTORY dataframe for animal {animal.RFID}"
+                )
+
+                xList, yList, fList = animal.getTrajectoryData()
+
+                for i in range(len(xList)):
+                    if np.isnan(xList[i]).any() or np.isnan(yList[i]).any():
+                        continue
+                    results.append(
+                        {
+                            "RFID": animal.RFID,
+                            "ANIMALID": animal.baseId,
+                            "FRAME": fList[i],
+                            "X": np.mean(xList[i]),
+                            "Y": np.mean(yList[i]),
+                            "TIME": self.binner.frame_to_time(
+                                fList[i],
+                            ),
+                        }
+                    )
+
+            processed_df = pd.DataFrame(results)
+
             if df is None:
                 df = processed_df
             else:

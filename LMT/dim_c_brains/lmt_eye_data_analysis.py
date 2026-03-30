@@ -225,17 +225,17 @@ class LMTEYEDataAnalyzer:
                 f"({(current_progression/max_progression)*100:.1f}%)"
             )
 
-        # trajectory_df = trajectory_reports.generic_reports(
-        #     repo_manager, df_constructor, **dic_settings
-        # )
-        # current_progression += 1
-        # if progress_callback:
-        #     progress_callback(current_progression, max_progression)
-        # else:
-        #     print(
-        #         f"Progress: {current_progression}/{max_progression} "
-        #         f"({(current_progression/max_progression)*100:.1f}%)"
-        #     )
+        trajectory_df = trajectory_reports.generic_reports(
+            repo_manager, df_constructor, **dic_settings
+        )
+        current_progression += 1
+        if progress_callback:
+            progress_callback(current_progression, max_progression)
+        else:
+            print(
+                f"Progress: {current_progression}/{max_progression} "
+                f"({(current_progression/max_progression)*100:.1f}%)"
+            )
 
         if events_df is not None:
             for event_name in sorted_events:
