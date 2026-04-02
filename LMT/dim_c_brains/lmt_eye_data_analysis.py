@@ -145,7 +145,7 @@ class LMTEYEDataAnalyzer:
             self.settings.processing_limits[1],
             self.settings.fps,
             self.settings.processing_window,
-            self.settings.UTC_offset,
+            self.settings.utc_offset,
         )
 
         self.settings.logic_update()
@@ -187,13 +187,14 @@ class LMTEYEDataAnalyzer:
         )
 
         df_constructor = DataFrameConstructor(
-            connection,
-            self.settings.time_window,
-            self.settings.round_hour_bins,
-            self.settings.processing_window,
-            self.settings.processing_limits,
-            self.settings.fps,
-            self.settings.UTC_offset,
+            connection=connection,
+            bin_rounding=self.settings.bin_rounding,
+            bin_window=self.settings.time_window,
+            processing_window=self.settings.processing_window,
+            processing_limits=self.settings.processing_limits,
+            analysis_area=self.settings.analysis_area,
+            fps=self.settings.fps,
+            utc_offset=self.settings.utc_offset,
         )
 
         if not self.settings.events:

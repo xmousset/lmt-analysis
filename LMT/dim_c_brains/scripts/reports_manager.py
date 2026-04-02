@@ -127,6 +127,14 @@ class HTMLReportManager:
             figures will be displayed in a single row.
         """
         nb_fig = len(figures)
+
+        fig_htmls = []
+        for fig in figures:
+            if isinstance(fig, go.Figure):
+                fig_htmls.append(fig.to_html(**self.html_param))
+            else:
+                fig_htmls.append(fig)
+
         html = ""
 
         if nb_fig == 0:
@@ -144,16 +152,12 @@ class HTMLReportManager:
 
         html += "<div class='container-fluid'>"
         for j in range(rows):
-            html += "<div class='row g-0'>"
+            html += "<div class='row'>"
             for i in range(cols):
                 idx = j * cols + i
                 if idx < nb_fig:
-                    html += f"<div class='col-{12 // cols} p-0'>"
-                    figure = figures[idx]
-                    if isinstance(figure, str):
-                        html += figure
-                    else:
-                        html += figure.to_html(**self.html_param)
+                    html += f"<div class='col-{12 // cols}'>"
+                    html += fig_htmls[idx]
                     html += "</div>"
             html += "</div>"
         html += "</div>"

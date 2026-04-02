@@ -78,13 +78,13 @@ def generic_reports(
 
     df_count = df.groupby("RFID").size().reset_index(name="Count")
     detections_content = "<br>".join(
-        f"{rfid}: {count:,}".replace(",", " ")
+        f"{rfid}: {count:,} frames".replace(",", " ")
         for rfid, count in zip(df_count["RFID"], df_count["Count"])
     )
     report_manager.add_card(
         name="Detections",
         content=(
-            "Number of detections recorded for each animal:<br>"
+            "Number of frames where each animal was detected:<br>"
             f"{detections_content}"
         ),
     )
@@ -102,13 +102,16 @@ def generic_reports(
         labels={"X": "X position (<i>cm</i>)", "Y": "Y position (<i>cm</i>)"},
         **plot_parameters,
     )
+    fig.update_layout(
+        height=600,
+        xaxis=dict(scaleanchor="y", scaleratio=1),
+        yaxis=dict(scaleanchor="x", scaleratio=1),
+    )
 
     report_title = f"Density contour of animal trajectory"
     report_description = f"""
     This graph shows the density contour of animal trajectory during the
     selected time interval.
-    <br>
-    This graph shows the locomotor activity of each animal over time.
     """
     report_manager.add_report(
         name=report_title,
@@ -132,34 +135,35 @@ def generic_reports(
                 "Y": "Y position (<i>cm</i>)",
             },
         )
-        fig.update_layout(
-            width=400,
-            height=400,
-            margin=dict(l=20, r=20, t=50, b=20),
-            title=f"RFID: {rfid}",
-            coloraxis_colorbar_title_text="Count",
-        )
         fig.update_traces(
             contours_coloring="fill",
             contours_showlines=False,
             selector=dict(type="histogram2dcontour"),
             colorscale="Blues",
         )
+        fig.update_layout(
+            margin=dict(l=0, r=0, t=30, b=0),
+            xaxis=dict(scaleanchor="y", scaleratio=1),
+            yaxis=dict(scaleanchor="x", scaleratio=1),
+            showlegend=False,
+            title=f"RFID: {rfid}",
+            plot_bgcolor="rgba(0,0,0,0)",
+        )
         figs.append(fig)
 
     report_title = f"Density contour of animal trajectory"
     report_description = f"""
-    This graph shows the density contour of animal trajectory for each animal during the
-    selected time interval.
-    <br>
-    This graph shows the locomotor activity of each animal over time.
+    This graph shows the density contour of animal trajectory for each animal
+    during the selected time interval. The color of the trajectory lines
+    represents the density of detections in this area, with darker and lighter
+    colors representing respectively a higher and a lower density values.
     """
 
     report_manager.add_multi_fig_report(
         name=report_title,
         figures=figs,
         top_note=report_description,
-        max_fig_in_row=4,
+        max_fig_in_row=2,
     )
 
     #######################################
@@ -175,30 +179,86 @@ def generic_reports(
             y="Y",
             color="MIN_FROM_START",
             color_continuous_scale="Plotly3",
-            labels={"MIN_FROM_START": "Time (min)"},
+            labels={
+                "X": "X position (<i>cm</i>)",
+                "Y": "Y position (<i>cm</i>)",
+                "MIN_FROM_START": "Time (min)",
+            },
         )
         fig.update_traces(marker=dict(opacity=0.1, size=3))
         fig.update_layout(
-            width=400,
-            height=400,
-            margin=dict(l=20, r=20, t=50, b=20),
+            margin=dict(l=0, r=0, t=30, b=0),
+            xaxis=dict(scaleanchor="y", scaleratio=1),
+            yaxis=dict(scaleanchor="x", scaleratio=1),
+            showlegend=False,
             title=f"RFID: {rfid}",
-            coloraxis_colorbar_title_text="Time",
             plot_bgcolor="rgba(0,0,0,0)",
         )
         figs.append(fig)
 
+    report_title = f"Animals trajectories"
+    report_description = f"""
+    This graph shows the trajectory of each animal. The color of the trajectory
+    lines represents the time progression, with darker colors for the beggining 
+    (earlier time points) and lighter colors for the end (later time points) of
+    the experiment.
+    """
+
     report_manager.add_multi_fig_report(
-        name="Animal trajectory line plot",
+        name="",
         figures=figs,
         top_note="Trajectory lines colored by time progression",
-        max_fig_in_row=4,
+        max_fig_in_row=2,
     )
 
     #######################################
     #   TABLE   #
     #######################################
-    # report_manager.add_table_headers(name="complete table", df=df)
+    text = (
+        "The complete table data used to create the above graphs can be "
+        "generated using the code below. The application use the "
+        "<i>get_df_trajectory</i> method from <i>DataFrameConstructor</i> that "
+        "return the trajectory as a pandas DataFrame. Here is the code of "
+        "this method (it supposed you already know how to connect to your "
+        "SQLite database):"
+    )
+
+    code = "<pre><code class='language-python'>"
+    code += """
+        animal_pool = AnimalPool()
+        animal_pool.loadAnimals(connection)
+        animal_pool.loadDetection(lightLoad=True)
+        
+        # area filtering is optional,
+        filter_area = False
+        if filter_area:
+            # Example centered area, replace with actual values
+            animal_pool.filterDetectionByArea(15, 15, 35, 35)
+        
+        results = []
+        for animal in animal_pool.getAnimalList():
+            xList, yList, fList = animal.get_trajectory()
+            for i in range(len(xList)):
+                if np.isnan(xList[i]).any() or np.isnan(yList[i]).any():
+                    continue
+                results.append(
+                    {
+                        "RFID": animal.RFID,
+                        "ANIMALID": animal.baseId,
+                        "FRAME": fList[i],
+                        "X": np.mean(xList[i]) * animal.parameters.scaleFactor,
+                        "Y": np.mean(yList[i]) * animal.parameters.scaleFactor,
+                    }
+                )
+        processed_df = pd.DataFrame(results)
+    """
+    code += "</code></pre>"
+
+    report_manager.add_report(
+        name="How to get the complete table",
+        top_note=text,
+        html_figure=code,
+    )
 
     ################
     #   Return   #
