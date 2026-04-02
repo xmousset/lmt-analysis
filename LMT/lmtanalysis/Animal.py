@@ -385,6 +385,46 @@ class Animal:
 
         return xList, yList
 
+    def get_trajectory(self):
+
+        keyList = sorted(self.detectionDictionary.keys())
+
+        xList = []
+        yList = []
+        fList = []
+
+        previousKey = 0
+
+        for key in keyList:
+
+            if previousKey + 1 != key:
+                xList.append([np.nan, np.nan])
+                yList.append([np.nan, np.nan])
+                fList.append(key)
+                previousKey = key
+                continue
+
+            previousKey = key
+            a = self.detectionDictionary.get(key)
+            if a == None:
+                xList.append([np.nan, np.nan])
+                yList.append([np.nan, np.nan])
+                fList.append(key)
+                continue
+
+            b = self.detectionDictionary.get(key + 1)
+            if b == None:
+                xList.append([np.nan, np.nan])
+                yList.append([np.nan, np.nan])
+                fList.append(key)
+                continue
+
+            xList.append([a.massX, b.massX])
+            yList.append([-a.massY, -b.massY])
+            fList.append(key)
+
+        return xList, yList, fList
+
     def getNoseTrajectoryData(self, maskingEventTimeLine=None):
 
         keyList = sorted(self.detectionDictionary.keys())

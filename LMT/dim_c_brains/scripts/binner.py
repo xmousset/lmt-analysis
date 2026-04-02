@@ -41,10 +41,11 @@ class Binner:
         last_frame: int,
         last_timestamp: int,
         bin_size: int | pd.Timedelta = 15 * 60 * 30,  # 15 minutes at 30 FPS
+        bin_rounding: bool = True,
         start: int | pd.Timestamp | None = None,
         end: int | pd.Timestamp | None = None,
         fps: int = 30,  # frames per second
-        UTC_offset: float = 1.0,
+        utc_offset: float = 0.0,
     ):
         """
         Initialize Binner with last FRAMENUMBER and TIMESTAMP of a
@@ -61,8 +62,8 @@ class Binner:
                 for binning.
             fps (int, optional): frames per second of the experiment. Defaults
                 to *30*.
-            UTC_offset (float, optional): UTC offset in hours for correct
-                timezone conversion (e.g. *+9.0* for Tokyo). Defaults to *1.0*.
+            utc_offset (float, optional): UTC offset in hours for correct
+                timezone conversion (e.g. *+9.0* for Tokyo). Defaults to *0.0*.
 
         Note that the UTC offset is only used for the conversion of frame
         numbers to timestamps and vice versa, and does not affect the actual
@@ -70,8 +71,8 @@ class Binner:
         """
         self.last_frame = last_frame
         self.last_timestamp = last_timestamp
-        self.UTC_offset = pd.Timedelta(hours=UTC_offset)
-        self.set_parameters(bin_size, start, end, fps)
+        self.utc_offset = pd.Timedelta(hours=utc_offset)
+        self.set_parameters(bin_size, bin_rounding, start, end, fps)
 
         print(f"Binner initialized with:")
         print(f"last FRAMENUMBER: {self.last_frame}")
@@ -99,6 +100,7 @@ class Binner:
     def set_parameters(
         self,
         bin_size: int | pd.Timedelta | None = None,
+        bin_rounding: bool | None = None,
         start: int | pd.Timestamp | None = None,
         end: int | pd.Timestamp | None = None,
         fps: int | None = None,
@@ -116,9 +118,9 @@ class Binner:
         timestamp_0 = self.last_timestamp - (self.last_frame / self.fps * 1000)
         self.bin_0: Dict[str, Any] = {
             "FRAMENUMBER": 0,
-            "TIMESTAMP": timestamp_0 + self.UTC_offset.total_seconds() * 1000,
+            "TIMESTAMP": timestamp_0 + self.utc_offset.total_seconds() * 1000,
         }
-        self.time_0 = pd.to_datetime(timestamp_0, unit="ms") + self.UTC_offset
+        self.time_0 = pd.to_datetime(timestamp_0, unit="ms") + self.utc_offset
 
         if isinstance(bin_size, pd.Timedelta):
             bin_size = self.timedelta_to_frames(bin_size)
@@ -127,6 +129,9 @@ class Binner:
             if bin_size < 1:
                 raise ValueError("bin_size must be at least 1 frame")
             self.bin_size = bin_size
+
+        if bin_rounding is not None:
+            self.bin_rounding = bin_rounding
 
         if isinstance(start, pd.Timestamp):
             start = self.time_to_frame(start)
@@ -161,11 +166,16 @@ class Binner:
         """Calculate the bin dataframe with START_FRAME, END_FRAME, START_TIME,
         and END_TIME as columns."""
 
-        # get the first bin starting frame number
-        # it is a negative value because bins start at round hours
-        dt_0 = self.frame_to_time(self.bin_size)
-        dt_bin_0 = dt_0.floor(f"{self.bin_size // (60 * self.fps)}min")
-        start_frame_bin_1 = self.time_to_frame(dt_bin_0)
+        print(self.fps)
+
+        # get the starting frame number of the first bin
+        if self.bin_rounding:
+            # it is a negative integer if bins start at round hours
+            dt_0 = self.frame_to_time(self.bin_size)
+            dt_bin_0 = dt_0.floor(f"{self.bin_size // (60 * self.fps)}min")
+            start_frame_bin_1 = self.time_to_frame(dt_bin_0)
+        else:
+            start_frame_bin_1 = 1
 
         # calculate starting frame of each bins until last frame
         bin_start_frames: List[int] = []

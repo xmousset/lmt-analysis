@@ -25,13 +25,15 @@ class DataFrameConstructor:
     def __init__(
         self,
         connection: Connection,
+        bin_rounding: bool = True,
         bin_window: int = 15 * oneMinute,
         processing_window: int | pd.Timedelta = oneDay,
         processing_limits: tuple[
             int | pd.Timestamp | None, int | pd.Timestamp | None
         ] = (None, None),
+        analysis_area: tuple[int, int, int, int] | None = None,
         fps: int = 30,
-        UTC_offset: float = 1.0,
+        utc_offset: float = 0.0,
     ):
         """
         instanciate pandas dataframes constructor. All datas will be binned
@@ -40,6 +42,8 @@ class DataFrameConstructor:
 
         Args:
             connection (Connection): SQLite database connection.
+            bin_rounding (bool, optional): Whether to round the time bins to
+                the nearest hour. Defaults to True.
             bin_window (int | pd.Timedelta, optional): The bin window (in
                 frames or pandas.Timedelta) for binning data.
                 Defaults to 15 minutes.
@@ -52,9 +56,12 @@ class DataFrameConstructor:
             end (int | pd.Timestamp | None, optional): The ending frame or
                 timestamp for data processing. If None, it will process until
                 the end of the dataset. Defaults to None.
+            analysis_area (tuple of int or None, optional): Area to be analyzed
+                in the format (x_min, y_min, x_max, y_max) in centimeters
+                (*cm*). Defaults to None (analyze all data).
             fps (int, optional): Frames per second. Defaults to 30.
-            UTC_offset (float, optional): UTC offset in hours for correct
-                timezone conversion (e.g. *+9.0* for Tokyo). Defaults to *1.0*.
+            utc_offset (float, optional): UTC offset in hours for correct
+                timezone conversion (e.g. *+9.0* for Tokyo). Defaults to *0.0*.
         """
         self.animal_pool = AnimalPool()
         self.animal_pool.loadAnimals(connection)
@@ -64,12 +71,15 @@ class DataFrameConstructor:
             last_framenumber,
             last_timestamp,
             bin_size=bin_window,
+            bin_rounding=bin_rounding,
             start=processing_limits[0],
             end=processing_limits[1],
             fps=fps,
-            UTC_offset=UTC_offset,
+            utc_offset=utc_offset,
         )
         self.processing_window = processing_window
+        self.analysis_area = analysis_area
+        """(x_min, y_min, x_max, y_max) in *cm*. If None, analyze all data."""
 
     def set_bin_window(self, bin_window: int | pd.Timedelta):
         """Set the bin window (in *frames* or *pandas.Timedelta*) for data
@@ -269,6 +279,9 @@ class DataFrameConstructor:
             lightLoad=True,
         )
 
+        if self.analysis_area is not None:
+            self.animal_pool.filterDetectionByArea(*self.analysis_area)
+
         results = []
         for animal in self.animal_pool.getAnimalList():
             print(f"Creating ACTIVITY dataframe for animal {animal.RFID}")
@@ -362,6 +375,65 @@ class DataFrameConstructor:
             processed_df = self.get_df_activity(
                 bin_iterator, filter_flickering, filter_stop
             )
+            if df is None:
+                df = processed_df
+            else:
+                df = pd.concat([df, processed_df], ignore_index=True)
+
+        if df is None:
+            print("Unable to create the activity dataframe")
+            return None
+
+        return self.sort_rfid_as_category(df)
+
+    def get_df_trajectory(self) -> pd.DataFrame | None:
+        """Get a DataFrame containing trajectory data for all animals.
+        (distance are in cm)
+        """
+
+        split_iterator = self.binner.split_iterator_in_chunks(
+            self.processing_window, self.binner.get_bin_iterator()
+        )
+        df = None
+
+        for bin_iterator in split_iterator:
+            print(
+                f"TRAJECTORY processing for frames {bin_iterator[0][0]} to "
+                f"{bin_iterator[-1][1]}"
+            )
+            self.animal_pool.loadDetection(
+                start=bin_iterator[0][0],
+                end=bin_iterator[-1][1],
+                lightLoad=True,
+            )
+            if self.analysis_area is not None:
+                self.animal_pool.filterDetectionByArea(*self.analysis_area)
+            results = []
+            for animal in self.animal_pool.getAnimalList():
+                print(
+                    f"Creating TRAJECTORY dataframe for animal {animal.RFID}"
+                )
+
+                xList, yList, fList = animal.get_trajectory()
+
+                for i in range(len(xList)):
+                    if np.isnan(xList[i]).any() or np.isnan(yList[i]).any():
+                        continue
+                    results.append(
+                        {
+                            "RFID": animal.RFID,
+                            "ANIMALID": animal.baseId,
+                            "FRAME": fList[i],
+                            "X": np.mean(xList[i])
+                            * animal.parameters.scaleFactor,
+                            "Y": np.mean(yList[i])
+                            * animal.parameters.scaleFactor,
+                            "TIME": self.binner.frame_to_time(fList[i]),
+                        }
+                    )
+
+            processed_df = pd.DataFrame(results)
+
             if df is None:
                 df = processed_df
             else:

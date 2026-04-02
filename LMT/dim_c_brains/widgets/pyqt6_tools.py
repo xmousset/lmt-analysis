@@ -9,13 +9,10 @@ from pathlib import Path
 from typing import Literal
 
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QMovie
 from PyQt6.QtWidgets import (
-    QApplication,
     QFileDialog,
     QHBoxLayout,
     QLabel,
-    QMessageBox,
     QPushButton,
     QSizePolicy,
     QStyle,

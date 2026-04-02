@@ -18,8 +18,16 @@ class LMTEYESettings:
 
     Parameters
     ----------
+    analysis_area : tuple of int or None, optional
+        Area to be analyzed in the format (x_min, y_min, x_max, y_max) in
+        centimeters (*cm*).
+        Defaults to None (analyze the entire area).
     animal_type : AnimalType, optional
         Type of animal for event processing. Defaults to AnimalType.MOUSE.
+    bin_rounding : bool, optional
+        Whether to round the time bins to the nearest hour. If False, the time
+        bins will be based on the first timestamp of the recording. Defaults to
+        True.
     events : set of str, optional
         Set of event names to analyze. By default, no event analysis is
         performed (empty set).
@@ -55,9 +63,9 @@ class LMTEYESettings:
     time_window : int, optional
         Time window for data binning in *frames*. Defaults to *27 000 (= 15
         min)*.
-    UTC_offset : float, optional
+    utc_offset : float, optional
         UTC offset in hours for correct timezone conversion (e.g. +9.0 for
-        Tokyo time, default is +1.0 for Paris time). Defaults to 1.0.
+        Tokyo time, +2.0 for Paris Summer time). Defaults to 0.0.
 
     To add another parameter, simply add it in both the `get_default_settings`
     and the `reset` methods of the class, all other methods will automatically
@@ -72,7 +80,9 @@ class LMTEYESettings:
     def get_default_settings() -> dict[str, Any]:
         """Get the default settings values as a dictionary."""
         default_settings = {
+            "analysis_area": None,
             "animal_type": AnimalType.MOUSE,
+            "bin_rounding": True,
             "events": set(),
             "filter_flickering": True,
             "filter_stop": True,
@@ -84,7 +94,7 @@ class LMTEYESettings:
             "processing_window": oneDay,
             "rebuild_events": False,
             "time_window": 15 * oneMinute,
-            "UTC_offset": 1.0,
+            "utc_offset": 0.0,
         }
         return default_settings
 
@@ -150,7 +160,11 @@ class LMTEYESettings:
 
         default_settings = LMTEYESettings.get_default_settings()
 
+        self.analysis_area: tuple[int, int, int, int] | None = (
+            default_settings["analysis_area"]
+        )
         self.animal_type: AnimalType = default_settings["animal_type"]
+        self.bin_rounding: bool = default_settings["bin_rounding"]
         self.events: set[str] = default_settings["events"]
         self.filter_flickering: bool = default_settings["filter_flickering"]
         self.filter_stop: bool = default_settings["filter_stop"]
@@ -164,7 +178,7 @@ class LMTEYESettings:
         ] = default_settings["processing_limits"]
         self.rebuild_events: bool = default_settings["rebuild_events"]
         self.time_window: int = default_settings["time_window"]
-        self.UTC_offset: float = default_settings["UTC_offset"]
+        self.utc_offset: float = default_settings["utc_offset"]
 
     def logic_update(self):
         """Update the settings values based on the current settings. Useful,
