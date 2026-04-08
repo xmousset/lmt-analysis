@@ -7,7 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
-from dim_c_brains.scripts.dataframe_constructor import DataFrameConstructor
+from dim_c_brains.scripts.df_constructor import DataframeConstructor
 from dim_c_brains.scripts.plotting_functions import (
     str_h_min,
     floor_power10,
@@ -21,7 +21,7 @@ COLOR_MAP = px.colors.qualitative.Plotly
 
 def generic_reports(
     report_manager: HTMLReportManager,
-    df_constructor: DataFrameConstructor,
+    df_constructor: DataframeConstructor,
     **kwargs,
 ):
     """Analyse mice activity and creates a generic dataframe using the given

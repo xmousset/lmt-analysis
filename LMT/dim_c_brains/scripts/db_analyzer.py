@@ -9,9 +9,11 @@ from datetime import datetime
 
 import pandas as pd
 
-from dim_c_brains.lmt_eye_settings import LMTEYESettings
+from LMT.dim_c_brains.scripts.db_analyzer_settings import (
+    DbAnalyzerSettings,
+)
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
-from dim_c_brains.scripts.dataframe_constructor import DataFrameConstructor
+from LMT.dim_c_brains.scripts.df_constructor import DataframeConstructor
 from dim_c_brains.scripts.events_rebuilder import EventsRebuilder
 from dim_c_brains.reports import (
     activity_reports,
@@ -26,9 +28,9 @@ from dim_c_brains.scripts.tkinter_tools import (
 )
 
 
-class LMTEYEDataAnalyzer:
-    """Class to analyze LMT-EYE data, generate reports and save them to an output
-    folder."""
+class DatabaseAnalyzer:
+    """Class to analyze LMT database, generate reports and save them to an
+    output folder."""
 
     @staticmethod
     def get_informations(database_path: Path):
@@ -78,7 +80,7 @@ class LMTEYEDataAnalyzer:
     def __init__(
         self,
         database_path: Path | str | None = None,
-        settings: LMTEYESettings | None = None,
+        settings: DbAnalyzerSettings | None = None,
     ):
         """
         LMT-EYE analysis workflow for LMT database. Can rebuild events,
@@ -100,7 +102,7 @@ class LMTEYEDataAnalyzer:
             self.database_path = self.choose_sqlite_file()
 
         if settings is None:
-            self.settings = LMTEYESettings()
+            self.settings = DbAnalyzerSettings()
         else:
             self.settings = settings
 
@@ -186,7 +188,7 @@ class LMTEYEDataAnalyzer:
             f"{self.settings.processing_limits[1]}"
         )
 
-        df_constructor = DataFrameConstructor(
+        df_constructor = DataframeConstructor(
             connection=connection,
             bin_rounding=self.settings.bin_rounding,
             bin_window=self.settings.time_window,

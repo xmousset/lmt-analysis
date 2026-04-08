@@ -9,7 +9,7 @@ import plotly.express as px
 import pandas as pd
 
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
-from dim_c_brains.scripts.dataframe_constructor import DataFrameConstructor
+from dim_c_brains.scripts.df_constructor import DataframeConstructor
 from dim_c_brains.scripts.plotting_functions import (
     str_h_min,
     draw_nights,
@@ -19,7 +19,7 @@ from dim_c_brains.scripts.plotting_functions import (
 
 def generic_reports(
     report_manager: HTMLReportManager,
-    df_constructor: DataFrameConstructor,
+    df_constructor: DataframeConstructor,
     df_activity: pd.DataFrame | None = None,
     df_events: pd.DataFrame | None = None,
     df_sensors: pd.DataFrame | None = None,

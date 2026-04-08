@@ -14,7 +14,7 @@ from dim_c_brains.scripts.events_and_modules import ALL_EVENTS
 from dim_c_brains.widgets.pyqt6_tools import get_btn_style
 
 
-class EventSelectionDialog(QDialog):
+class EventSelectionWindow(QDialog):
     """PyQt6 Dialog to select which analysis to perform"""
 
     def __init__(
@@ -96,6 +96,6 @@ def test_event_selection_dialog():
 
     app = QApplication(sys.argv)
     preselected = {"Flickering", "Stop"}
-    dialog = EventSelectionDialog(None, preselected_events=preselected)
+    dialog = EventSelectionWindow(None, preselected_events=preselected)
     if dialog.exec() == QDialog.DialogCode.Accepted:
         print("Selected events:", dialog.selected_events)

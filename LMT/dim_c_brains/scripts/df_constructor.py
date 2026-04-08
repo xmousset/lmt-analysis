@@ -15,7 +15,7 @@ from lmtanalysis.Event import EventTimeLine
 from lmtanalysis.Animal import Animal, AnimalPool
 
 
-class DataFrameConstructor:
+class DataframeConstructor:
     """A class to construct pandas DataFrames from AnimalPool easy
     data manipulation and analysis. It is designed to handle large time
     windows (> oneDay), by processing data in chunks to reduce memory usage. By

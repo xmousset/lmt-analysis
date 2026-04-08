@@ -121,7 +121,7 @@ class AreaSelectionGraphicsView(QGraphicsView):
         return self.area.isVisible()
 
 
-class AreaSelectionDialog(QDialog):
+class AreaSelectionWindow(QDialog):
     """PyQt6 Dialog to select the area to be analyzed"""
 
     def __init__(
@@ -505,6 +505,6 @@ def test_area_selection_dialog():
     from PyQt6.QtWidgets import QApplication
 
     app = QApplication(sys.argv)
-    dialog = AreaSelectionDialog(None)
+    dialog = AreaSelectionWindow(None)
     if dialog.exec() == QDialog.DialogCode.Accepted:
         print("Selected area:", dialog.selected_area)

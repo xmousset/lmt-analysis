@@ -5,7 +5,7 @@
 import plotly.express as px
 
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
-from dim_c_brains.scripts.dataframe_constructor import DataFrameConstructor
+from dim_c_brains.scripts.df_constructor import DataframeConstructor
 from dim_c_brains.scripts.plotting_functions import (
     str_h_min,
     floor_power10,
@@ -16,7 +16,7 @@ from dim_c_brains.scripts.plotting_functions import (
 
 def generic_reports(
     report_manager: HTMLReportManager,
-    df_constructor: DataFrameConstructor,
+    df_constructor: DataframeConstructor,
     **kwargs,
 ):
     """Get all sensors datas in a dataframe using the given

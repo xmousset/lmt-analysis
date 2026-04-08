@@ -13,8 +13,8 @@ from lmtanalysis.Animal import AnimalType
 from lmtanalysis.Measure import oneMinute, oneDay
 
 
-class LMTEYESettings:
-    """Manage parameters for LMT analysis.
+class DbAnalyzerSettings:
+    """Manage settings for LMT database analyzer.
 
     Parameters
     ----------
@@ -158,7 +158,7 @@ class LMTEYESettings:
     def reset(self):
         """Reset the settings to their initial values."""
 
-        default_settings = LMTEYESettings.get_default_settings()
+        default_settings = DbAnalyzerSettings.get_default_settings()
 
         self.analysis_area: tuple[int, int, int, int] | None = (
             default_settings["analysis_area"]
@@ -201,7 +201,7 @@ class LMTEYESettings:
     def get_as_dict(self) -> dict[str, Any]:
         """Get the settings as a dictionary."""
         settings = {}
-        for key in LMTEYESettings.get_all_keys():
+        for key in DbAnalyzerSettings.get_all_keys():
             settings[key] = getattr(self, key)
         return settings
 
@@ -209,14 +209,14 @@ class LMTEYESettings:
         """Get the settings as a dictionary without class or object values
         (only int, float, bool, None and str). Useful for saving the settings in a JSON
         file."""
-        return LMTEYESettings.convert_in_str(self.get_as_dict())
+        return DbAnalyzerSettings.convert_in_str(self.get_as_dict())
 
     def update_from_dict(self, settings_dict: dict[str, Any]):
         """Update the settings from a dictionary."""
         update_dict = self.get_as_dict()
         update_dict.update(settings_dict)
 
-        for key in LMTEYESettings.get_all_keys():
+        for key in DbAnalyzerSettings.get_all_keys():
             setattr(self, key, update_dict[key])
 
     def save(self, file_path: Path):
@@ -246,5 +246,5 @@ class LMTEYESettings:
         self.reset()
         self._saver.load(file_path)
         settings = self._saver.get_parameters()
-        settings = LMTEYESettings.convert_from_str(settings)
+        settings = DbAnalyzerSettings.convert_from_str(settings)
         self.update_from_dict(settings)
