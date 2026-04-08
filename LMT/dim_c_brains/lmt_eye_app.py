@@ -2,28 +2,39 @@
 @author: xmousset
 """
 
+print("Starting LMT-EYE...")
+
 import sys
-import traceback
 from pathlib import Path
+
+################
+#   APP INFO   #
+################
+# command for executable creation (run in terminal at project root):
+# pyinstaller -p LMT --onefile --icon=LMT/dim_c_brains/res/lmt_eye_icon.png --add-data "LMT/dim_c_brains/res/lmt_eye_icon.png;dim_c_brains/res" --add-data "LMT/dim_c_brains/res/template;dim_c_brains/res/template" --add-data "LMT/dim_c_brains/res/assets;dim_c_brains/res/assets" --add-data "LMT/dim_c_brains/res/mouse_run.gif;dim_c_brains/res" LMT/dim_c_brains/lmt_eye_app.py
+
+APP_VERSION = "1.4"
+APP_RELEASE = "2026-04-08"
+
+if hasattr(sys, "_MEIPASS"):
+    # in app
+    LMT_PATH = Path(__file__).parent
+else:
+    # in dev
+    LMT_PATH = Path(__file__).parent.parent
+    # add LMT folder to path for importing modules in dev
+    sys.path.append(str(LMT_PATH))
+
+ICON_PATH = LMT_PATH / "dim_c_brains" / "res" / "lmt_eye_icon.png"
+GIF_PATH = LMT_PATH / "dim_c_brains" / "res" / "mouse_run.gif"
+
+
+################
+#   IMPORTS   #
+################
+import traceback
 from typing import Literal
 from datetime import datetime
-
-#######################################
-#   APP Creation Parameters   #
-#######################################
-APP_CREATION = False
-APP_VERSION = "1.3"
-APP_RELEASE = "2026-04-02"
-APP_ICON = Path(__file__).parent / "res" / "lmt_eye_icon.png"
-# command for executable creation (run in terminal at project root):
-# pyinstaller -p LMT --onefile --icon=LMT/dim_c_brains/res/lmt_eye_icon.png --add-data "LMT/dim_c_brains/res/template;dim_c_brains/res/template" --add-data "LMT/dim_c_brains/res/assets;dim_c_brains/res/assets" LMT/dim_c_brains/lmt_eye_app.py
-
-if APP_CREATION:
-    print("Starting LMT-EYE...")
-else:
-    # ADD LMT FOLDER TO PYTHON PATH
-    lmt_analysis_path = Path(__file__).parent.parent
-    sys.path.append(str(lmt_analysis_path))
 
 import pandas as pd
 
@@ -76,11 +87,12 @@ class LMTEYEApp(QMainWindow):
         self._init_ui()
 
     def _init_ui(self):
-        self.stacked = QStackedWidget()
         self.database_analysis = DatabaseAnalysisWindow()
-        # self.compare_ui = CompareWidget()
+        # self.compare_analysis = CompareWidget()
+
+        self.stacked = QStackedWidget()
         self.stacked.addWidget(self.database_analysis)
-        # self.stacked.addWidget(self.compare_ui)
+        # self.stacked.addWidget(self.compare_analysis)
         self.setCentralWidget(self.stacked)
         # Example: switch with a button
 
@@ -328,7 +340,7 @@ class DatabaseAnalysisWindow(QWidget):
                     <td colspan="2" style="color: gray; font-family: Calibri;">
                         <center><i>
                             <span>&#11169;</span>&nbsp;
-                            UTC{utc_offset_str} - {utc_offset_name}
+                            your time zone: UTC{utc_offset_str} - {utc_offset_name}
                         </i></center>
                     </td>
                 </tr>
@@ -517,11 +529,10 @@ class DatabaseAnalysisProgressBar(QDialog):
 
         movie_label = QLabel()
         movie_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        gif_path = Path(__file__).parent / "res" / "mouse_run.gif"
-        movie = QMovie(str(gif_path))
-        if movie.isValid():
-            movie_label.setMovie(movie)
-            movie.start()
+        self.movie = QMovie(str(GIF_PATH))
+        if self.movie.isValid():
+            movie_label.setMovie(self.movie)
+            self.movie.start()
 
         self.rebuild_progress = QProgressBar()
         self.rebuild_progress.setMinimum(0)
@@ -553,10 +564,7 @@ class DatabaseAnalysisProgressBar(QDialog):
 class SettingsWindow(QDialog):
     """Dialog to edit LMT-EYE settings."""
 
-    if APP_CREATION:
-        SAVING_PATH = Path.home() / "documents" / "LMT-EYE_settings"
-    else:
-        SAVING_PATH = Path(__file__).parent / "res" / "LMT-EYE_settings"
+    SAVING_PATH = Path.home() / "documents" / "LMT-EYE_settings"
     SAVING_PATH.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
@@ -613,7 +621,7 @@ class SettingsWindow(QDialog):
         out_row.addWidget(self.output_folder_edit)
         out_row.addWidget(out_btn)
 
-        form.addRow("Output Folder", out_row)
+        form.addRow("<b>Output Folder</b>", out_row)
 
         #######################################
         #   Animal Type   #
@@ -638,7 +646,7 @@ class SettingsWindow(QDialog):
         animal_type_row.addWidget(self.animal_type_box)
         animal_type_row.addStretch(1)
 
-        form.addRow("Animal type", animal_type_row)
+        form.addRow("<b>Animal type</b>", animal_type_row)
         form.addRow(self.Qhline())
 
         #######################################
@@ -684,8 +692,8 @@ class SettingsWindow(QDialog):
         custom_row = QHBoxLayout()
         custom_row.addWidget(self.custom_event_edit)
 
-        form.addRow(events_row)
-        form.addRow("Custom events:", custom_row)
+        form.addRow("<b>Events</b>", events_row)
+        form.addRow("<b>Custom events</b>", custom_row)
         form.addRow(self.Qhline())
 
         #######################################
@@ -719,7 +727,7 @@ class SettingsWindow(QDialog):
         filters_row.addWidget(self.stop_cb)
         filters_row.addStretch(1)
 
-        form.addRow("Filters", filters_row)
+        form.addRow("<b>Filters</b>", filters_row)
         form.addRow(self.Qhline())
 
         #######################################
@@ -738,10 +746,14 @@ class SettingsWindow(QDialog):
         self._update_area_label()
 
         area_row = QVBoxLayout()
-        area_row.addWidget(self.select_area_btn)
-        area_row.addWidget(self.selected_area_label)
+        area_row.addWidget(
+            self.select_area_btn, alignment=Qt.AlignmentFlag.AlignCenter
+        )
+        area_row.addWidget(
+            self.selected_area_label, alignment=Qt.AlignmentFlag.AlignCenter
+        )
 
-        form.addRow("Area filtering:", area_row)
+        form.addRow("<b>Area filtering</b>", area_row)
         form.addRow(self.Qhline())
 
         #######################################
@@ -843,7 +855,7 @@ class SettingsWindow(QDialog):
         time_row.addWidget(QLabel("Minutes:"))
         time_row.addWidget(self.time_window_minutes)
         time_row.addStretch(1)
-        form.addRow("Binning", time_row)
+        form.addRow("<b>Binning</b>", time_row)
 
         proc_row = QHBoxLayout()
         proc_row.addStretch(1)
@@ -853,7 +865,7 @@ class SettingsWindow(QDialog):
         proc_row.addWidget(QLabel("Hours:"))
         proc_row.addWidget(self.process_window_hours)
         proc_row.addStretch(1)
-        form.addRow("Processing", proc_row)
+        form.addRow("<b>Processing</b>", proc_row)
 
         fps_row = QHBoxLayout()
         fps_row.addStretch(1)
@@ -863,7 +875,7 @@ class SettingsWindow(QDialog):
         fps_row.addWidget(QLabel("FPS:"))
         fps_row.addWidget(self.fps_spin)
         fps_row.addStretch(1)
-        form.addRow("", fps_row)
+        form.addRow("<b>FPS</b>", fps_row)
 
         form.addRow(self.Qhline())
 
@@ -910,7 +922,7 @@ class SettingsWindow(QDialog):
         night_row.addWidget(self.night_end_label)
         night_row.addStretch(1)
 
-        form.addRow("Nights", night_row)
+        form.addRow("<b>Nights</b>", night_row)
 
         #######################################
         #   UTC TIME ZONE   #
@@ -931,7 +943,7 @@ class SettingsWindow(QDialog):
         utc_row.addWidget(self.utc_offset_spin)
         utc_row.addStretch(1)
 
-        form.addRow("Time Zone", utc_row)
+        form.addRow("<b>Time Zone</b>", utc_row)
         form.addRow(self.Qhline())
 
         #######################################
@@ -993,7 +1005,7 @@ class SettingsWindow(QDialog):
         )
 
         # row layout
-        form.addRow("Limits", limits_row)
+        form.addRow("<b>Time limits</b>", limits_row)
         form.addRow(limits_infos_row)
         form.addRow(self.Qhline())
 
@@ -1294,8 +1306,8 @@ class SettingsWindow(QDialog):
         else:
             x_min, y_min, x_max, y_max = area
             text = (
-                f"Area (in *cm*) from ({x_min}, {y_min}) "
-                f"to ({x_max}, {y_max})."
+                f"Area from ({x_min}, {y_min}) "
+                f"to ({x_max}, {y_max}) in <i>cm</i>."
             )
         self.selected_area_label.setText(text)
 
@@ -1378,15 +1390,26 @@ def exception_hook(type_, value, tb):
 
 
 if __name__ == "__main__":
+
+    try:
+        # set windows taskbar icon (must be before QApplication)
+        from ctypes import windll
+
+        windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+            "lmt.lmt-eye.app"
+        )
+    except ImportError:
+        # not on windows, do nothing
+        pass
+
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(True)
     app.setApplicationVersion(APP_VERSION)
-    app.setWindowIcon(QIcon(str(APP_ICON)))
+    app.setWindowIcon(QIcon(str(ICON_PATH)))
     app.setApplicationName("LMT-EYE")
 
     sys.excepthook = exception_hook
 
-    # window = DatabaseAnalysis()
     main_window = LMTEYEApp()
 
     main_window.show()
