@@ -2,27 +2,29 @@
 @author: xmousset
 """
 
+from typing import Any
+
+import pandas as pd
 import plotly.express as px
 
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
-from dim_c_brains.scripts.df_constructor import DataframeConstructor
 from dim_c_brains.scripts.plotting_functions import (
-    str_h_min,
-    floor_power10,
     draw_nights,
     line_with_shade,
 )
-from dim_c_brains.reports.overview_reports import get_activity_card
+from dim_c_brains.reports.overview_analysis import get_activity_card
+
+from lmtanalysis.Measure import oneMinute, oneHour, oneDay
 
 
 def generic_reports(
     report_manager: HTMLReportManager,
-    df_constructor: DataframeConstructor,
+    df: pd.DataFrame | None,
+    comparator: str = "RFID",
     **kwargs,
 ):
-    """Analyse mice activity and creates a generic dataframe using the given
-    `DataFrameConstructor` and construct all the generic reports into the given
-    `HTMLReportManager` and returning the generated dataframe.
+    """Construct all the generic reports into the given `HTMLReportManager`
+    using the given dataframe.
 
     Other Parameters
     ----------------
@@ -41,13 +43,16 @@ def generic_reports(
         Whether to include the first value in plots. It impacts the
         rendering of columns graphs. By default, the first value is included.
         (default: True).
+    time_window : int, optional
+        The time window in frames to use for calculating the number of events
+        and the total duration of events in each time bin (default: 15 minutes
+        in frames, i.e., 15 * oneMinute).
+    fps : int, optional
+        The frames per second of the video to use for time calculations
+        (default: 30).
     """
 
     report_manager.reports_creation_focus("Activity")
-    df = df_constructor.process_activity(
-        kwargs.get("filter_flickering", False),
-        kwargs.get("filter_stop", False),
-    )
 
     if df is None:
         report_manager.add_title(
@@ -66,8 +71,12 @@ def generic_reports(
 
     NB_ANIMALS = df["RFID"].nunique()
 
-    exp_start_time, exp_end_time = df_constructor.get_processing_limits("TIME")
-    NB_DAYS = (exp_end_time - exp_start_time).total_seconds() / 3600 / 24
+    NB_DAYS = (
+        (df["END_FRAME"].max() - df["START_FRAME"].min())
+        / kwargs.get("fps", 30)
+        / 3600
+        / 24
+    )
 
     if kwargs.get("first_value_in_graph", True):
         MASK = df.index == df.index
@@ -81,10 +90,18 @@ def generic_reports(
         "night_duration": kwargs.get("night_duration", 12),
     }
 
-    plot_parameters = {
-        "color": "RFID",
-        "category_orders": {"RFID": list(df["RFID"].cat.categories)},
-    }
+    plot_parameters: dict[str, Any] = {}
+    xlsx_parameters: list[str] = []
+    if comparator == "RFID":
+        plot_parameters = {
+            "color": "RFID",
+            "category_orders": {"RFID": list(df["RFID"].cat.categories)},
+        }
+    else:
+        plot_parameters = {"color": comparator}
+        xlsx_parameters.append(comparator)
+    xlsx_parameters.append("RFID")
+    xlsx_parameters.append(TIME)
 
     #######################################
     #   Titles   #
@@ -102,8 +119,14 @@ def generic_reports(
     report_manager.add_card(
         name="Time interval unit",
         content=f"""
-        Calculated time bin is {df_constructor.binner.bin_size} frames.<br>
-        It corresponds to {df_constructor.binner.bin_size / 30 / 60} minutes.
+        Calculated time bin is {
+            kwargs.get("time_window", 15 * oneMinute)
+        } frames.
+        <br>It corresponds to {
+            kwargs.get("time_window", 15 * oneMinute)
+            / kwargs.get("fps", 30)
+            / 60
+        } minutes.
         """,
     )
     report_manager.add_card(
@@ -142,16 +165,16 @@ def generic_reports(
     report_title = f"Total distance travelled"
     report_description = f"""
     This graph shows the total distance in centimeters (DISTANCE) travelled by
-    each animal (RFID) over time ({TIME}) during the interval time window.
+    each animal ({comparator}) over time ({TIME}) during the interval time window.
     <br>
     This graph shows the locomotor activity of each animal
     over time.
     """
     report_manager.add_report(
         name=report_title,
-        html_figure=fig,
+        html_or_figure=fig,
         top_note=report_description,
-        graph_datas=df[["RFID", TIME, "DISTANCE"]],
+        graph_datas=df[[*xlsx_parameters, "DISTANCE"]],
     )
 
     #######################################
@@ -169,17 +192,17 @@ def generic_reports(
 
     report_title = f"Stop duration"
     report_description = f"""
-    Duration in minutes of event <i>Stop</i> (STOP_DURATION) by each animal (RFID) over time
-    ({TIME}) during the interval time window.
+    Duration in minutes of event <i>Stop</i> (STOP_DURATION) by each animal 
+    ({comparator}) over time ({TIME}) during the interval time window.
     <br>
     This graph shows the time spent immobile by each animal
     over time.
     """
     report_manager.add_report(
         name=report_title,
-        html_figure=fig,
+        html_or_figure=fig,
         top_note=report_description,
-        graph_datas=df[["RFID", TIME, "STOP_DURATION"]],
+        graph_datas=df[[*xlsx_parameters, "STOP_DURATION"]],
     )
 
     #######################################
@@ -198,16 +221,16 @@ def generic_reports(
     report_title = f"Move duration"
     report_description = f"""
     Duration in minutes of event <i>Move</i> (MOVE_DURATION) by each animal
-    (RFID) over time ({TIME}) during the interval time window.
+    ({comparator}) over time ({TIME}) during the interval time window.
     <br>
     This graph shows the time spent moving by each animal
     over time.
     """
     report_manager.add_report(
         name=report_title,
-        html_figure=fig,
+        html_or_figure=fig,
         top_note=report_description,
-        graph_datas=df[["RFID", TIME, "MOVE_DURATION"]],
+        graph_datas=df[[*xlsx_parameters, "MOVE_DURATION"]],
     )
 
     #######################################
@@ -226,16 +249,16 @@ def generic_reports(
     report_title = f"Undetected duration"
     report_description = f"""
     Duration in minutes of event <i>Undetected</i> (UNDETECTED_DURATION) by
-    each animal (RFID) over time ({TIME}) during the interval time window.
+    each animal ({comparator}) over time ({TIME}) during the interval time window.
     <br>
     This graph shows, over time, the duration when each animal was not detected
     by the LMT.
     """
     report_manager.add_report(
         name=report_title,
-        html_figure=fig,
+        html_or_figure=fig,
         top_note=report_description,
-        graph_datas=df[["RFID", TIME, "UNDETECTED_DURATION"]],
+        graph_datas=df[[*xlsx_parameters, "UNDETECTED_DURATION"]],
     )
 
     #######################################
@@ -244,7 +267,7 @@ def generic_reports(
     df_plot = df.copy()
     df_plot["HOUR"] = df_plot[TIME].apply(lambda x: x.hour)
     df_plot = (
-        df_plot.groupby(["RFID", "HOUR"], observed=True)[
+        df_plot.groupby([*xlsx_parameters, "HOUR"], observed=True)[
             ["MOVE_DURATION", "STOP_DURATION"]
         ]
         .sum()
@@ -277,7 +300,7 @@ def generic_reports(
 
     report_description = f"""
     Cumulated time taken by <i>Stop</i> events (STOP_DURATION) by each animal
-    (RFID) over each hour of the day.
+    ({comparator}) over each hour of the day.
     <br>
     The opposite is the time spent moving (MOVE_DURATION) in minutes. It is
     calculated as the interval time window minus STOP_DURATION.
@@ -301,14 +324,14 @@ def generic_reports(
     #     df[MASK],
     #     TIME,
     #     "SPEED_SUM",
-    #     color="RFID",
     #     labels={"SPEED_SUM": "SPEED_SUM (<i>cm/s</i>)"},
+    #     **plot_parameters,
     # )
     # fig = draw_nights(fig, **nights_parameters)
 
     # report_title = f"Cumulative speed"
     # report_description = f"""
-    # Cumulated speed (SPEED_SUM) of each animal (RFID) over time ({TIME})
+    # Cumulated speed (SPEED_SUM) of each animal ({comparator}) over time ({TIME})
     # during the interval time window.
     # <br>
     # This graph shows how much the activity of each animal
@@ -318,7 +341,7 @@ def generic_reports(
     #     name=report_title,
     #     figure=fig,
     #     note=report_description,
-    #     graph_datas=df[["RFID", TIME, "SPEED_SUM"]],
+    #     graph_datas=df[[*xlsx_parameters, "SPEED_SUM"]],
     # )
 
     #######################################
@@ -342,29 +365,24 @@ def generic_reports(
     report_title = f"Mean speed with std"
     report_description = f"""
     Mean speed (SPEED_MEAN) with the standard deviation (SPEED_STD) for each
-    animal (RFID) over time ({TIME}).
+    animal ({comparator}) over time ({TIME}).
     """
 
     # description for min max
     # report_title = f"Mean speed with min and max"
     # report_description = f"""
     # Mean speed (SPEED_MEAN) with the minimum (SPEED_MIN) and maximum
-    # (SPEED_MAX) speeds for each animal (RFID) over time ({TIME}).
+    # (SPEED_MAX) speeds for each animal ({comparator}) over time ({TIME}).
     # """
 
     report_manager.add_report(
         name=report_title,
-        html_figure=fig,
+        html_or_figure=fig,
         top_note=report_description,
-        graph_datas=df[["RFID", TIME, "SPEED_MEAN", "SPEED_STD"]],
+        graph_datas=df[[*xlsx_parameters, "SPEED_MEAN", "SPEED_STD"]],
     )
 
     #######################################
     #   TABLE   #
     #######################################
     report_manager.add_table_headers(name="complete table", df=df)
-
-    ################
-    #   Return   #
-    ################
-    return df

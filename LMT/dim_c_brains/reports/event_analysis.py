@@ -2,28 +2,27 @@
 @author: xmousset
 """
 
+import pandas as pd
 import plotly.express as px
 
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
-from dim_c_brains.scripts.df_constructor import DataframeConstructor
 from dim_c_brains.scripts.plotting_functions import (
-    str_h_min,
     floor_power10,
     draw_nights,
-    line_with_shade,
 )
-from dim_c_brains.reports.overview_reports import get_event_card
+from dim_c_brains.reports.overview_analysis import get_event_card
+
+from lmtanalysis.Measure import oneMinute, oneHour, oneDay
 
 
 def generic_reports(
     report_manager: HTMLReportManager,
-    df_constructor: DataframeConstructor,
+    df: pd.DataFrame | None,
     event_name: str,
     **kwargs,
 ):
-    """For any event, it creates a generic dataframe using the given
-    `DataFrameConstructor` and construct all the generic reports into the given
-    `HTMLReportManager` and returning the generated dataframe.
+    """For any event, construct all the generic reports into the given
+    `HTMLReportManager` using the given dataframe.
 
     Other Parameters
     ----------------
@@ -37,10 +36,16 @@ def generic_reports(
         Whether to include the first value in plots. It impacts the
         rendering of columns graphs. By default, the first value is included.
         (default: True).
+    time_window : int, optional
+        The time window in frames to use for calculating the number of events
+        and the total duration of events in each time bin (default: 15 minutes
+        in frames, i.e., 15 * oneMinute).
+    fps : int, optional
+        The frames per second of the video to use for time calculations
+        (default: 30).
     """
 
     report_manager.reports_creation_focus(event_name)
-    df = df_constructor.process_event(event_name)
 
     if df is None:
         report_manager.add_title(
@@ -59,8 +64,12 @@ def generic_reports(
 
     NB_ANIMALS = df["RFID"].nunique()
 
-    exp_start_time, exp_end_time = df_constructor.get_processing_limits("TIME")
-    NB_DAYS = (exp_end_time - exp_start_time).total_seconds() / 3600 / 24
+    NB_DAYS = (
+        (df["END_FRAME"].max() - df["START_FRAME"].min())
+        / kwargs.get("fps", 30)
+        / 3600
+        / 24
+    )
 
     if kwargs.get("first_value_in_graph", True):
         MASK = df.index == df.index
@@ -96,9 +105,12 @@ def generic_reports(
     report_manager.add_card(
         name="Time interval unit",
         content=f"""
-        Calculated time bin is {df_constructor.binner.bin_size} frames.<br>
-        It corresponds to {df_constructor.binner.bin_size
-        / df_constructor.binner.fps / 60} minutes.
+        Calculated time bin is {kwargs.get("time_window", 15 * oneMinute)} 
+        frames.<br>It corresponds to {
+            kwargs.get("time_window", 15 * oneMinute)
+            / kwargs.get("fps", 30)
+            / 60
+        } minutes.
         """,
     )
     report_manager.add_card(
@@ -189,7 +201,7 @@ def generic_reports(
     ]
 
     label = f"EVENT_COUNT per bin ({int(
-        df_constructor.binner.bin_size / df_constructor.binner.fps / 60
+        kwargs.get("time_window", 15 * oneMinute) / kwargs.get("fps", 30) / 60
     )} min)"
     figs.append(
         px.bar(
@@ -205,7 +217,7 @@ def generic_reports(
     )
 
     label = f"DURATION (min) per bin ({int(
-        df_constructor.binner.bin_size / df_constructor.binner.fps / 60
+        kwargs.get("time_window", 15 * oneMinute) / kwargs.get("fps", 30) / 60
     )} min)"
     figs.append(
         px.bar(
@@ -352,7 +364,7 @@ def generic_reports(
 
     report_manager.add_report(
         name=report_title,
-        html_figure=fig,
+        html_or_figure=fig,
         top_note=report_description,
         graph_datas=df[["RFID", TIME, "EVENT_COUNT", "DURATION"]],
     )
@@ -382,7 +394,7 @@ def generic_reports(
 
     report_manager.add_report(
         name=report_title,
-        html_figure=fig,
+        html_or_figure=fig,
         top_note=report_description,
         graph_datas=df[["RFID", TIME, "EVENT_COUNT", "DURATION"]],
     )
@@ -391,8 +403,3 @@ def generic_reports(
     #   TABLE   #
     #######################################
     report_manager.add_table_headers(name="complete table", df=df)
-
-    #######################################
-    #   Return   #
-    #######################################
-    return df

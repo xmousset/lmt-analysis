@@ -2,10 +2,8 @@
 @author: xmousset
 """
 
-from pathlib import Path
 from typing import List
 
-import plotly.express as px
 import pandas as pd
 
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
@@ -16,11 +14,13 @@ from dim_c_brains.scripts.plotting_functions import (
     line_with_shade,
 )
 
+from lmtanalysis.Measure import oneMinute, oneHour, oneDay
+
 
 def generic_reports(
     report_manager: HTMLReportManager,
-    df_constructor: DataframeConstructor,
-    df_activity: pd.DataFrame | None = None,
+    df_animals: pd.DataFrame | None,
+    df_activity: pd.DataFrame | None,
     df_events: pd.DataFrame | None = None,
     df_sensors: pd.DataFrame | None = None,
     **kwargs,
@@ -40,17 +40,23 @@ def generic_reports(
     """
 
     report_manager.reports_creation_focus("main")
-    df = df_constructor.get_df_animals()
+    if df_animals is None or df_activity is None:
+        report_manager.add_title(
+            name="Overview analysis",
+            content="No data available.",
+        )
+        return None
 
     #######################################
     #   Constants   #
     #######################################
 
-    NB_ANIMALS = df["RFID"].nunique()
+    NB_ANIMALS = df_animals["RFID"].nunique()
 
-    EXP_START, EXP_END = df_constructor.get_processing_limits("TIME")
-    EXP_DURATION = EXP_END - EXP_START
-    NB_DAYS = EXP_DURATION.total_seconds() / 3600 / 24
+    EXP_DURATION = (
+        df_activity["END_FRAME"].max() - df_activity["START_FRAME"].min()
+    ) / kwargs.get("fps", 30)
+    NB_DAYS = EXP_DURATION / 3600 / 24
 
     EXP_NAME = kwargs.get("database_path", None)
     if EXP_NAME is not None:
@@ -88,7 +94,7 @@ def generic_reports(
                 font-weight: bold;
             }}
         </style>
-        <center>{df.to_html(index=False, border=1)}</center>
+        <center>{df_animals.to_html(index=False, border=1)}</center>
         """,
     )
 
@@ -106,21 +112,21 @@ def generic_reports(
                     {NB_ANIMALS} animals
                     </strong></p>
                     <p style="margin: 0.5em 0;">Run during <strong>
-                    {EXP_DURATION.days} days
+                    {NB_DAYS:1.1f} days
                     </strong> and <strong>
-                    {EXP_DURATION.seconds // 3600} hours
+                    {EXP_DURATION // 3600} hours
                     </strong> and <strong>
-                    {(EXP_DURATION.seconds // 60) % 60} minutes
+                    {(EXP_DURATION // 60) % 60} minutes
                     </strong></p>
                     <p style="margin: 0.5em 0;">Binned every <strong>
-                    {df_constructor.binner.bin_size
-                    / df_constructor.binner.fps / 60} minutes
+                    {kwargs.get("time_window", 15 * oneMinute)
+                    / kwargs.get("fps", 30) / 60} minutes
                     </strong></p>
                     <p style="margin: 0.5em 0;">
-                    {EXP_START.strftime(t_format)} - start
+                    {df_activity["START_TIME"].min()} - start
                     </p>
                     <p style="margin: 0.5em 0;">
-                    {EXP_END.strftime(t_format)} - end
+                    {df_activity["END_TIME"].max()} - end
                     </p>
                 </div>
             </div>
@@ -185,14 +191,26 @@ def generic_reports(
         )
 
     #######################################
-    #   TABLE   #
+    #   SETTINGS   #
     #######################################
-    report_manager.add_table_headers(name="complete table", df=df)
+    msg = """
+    Here are all the settings used for this analysis. They can be useful to
+    keep track of the settings used for each analysis and to ensure that
+    comparisons are made with analyses using the same settings.
+    """
+
+    html = ""
+    for key, value in kwargs.items():
+        html += f"<b>{key}</b>: {value}<br>"
+
+    report_manager.add_report(
+        name="complete table", html_or_figure=html, top_note=msg
+    )
 
     #######################################
-    #   Return   #
+    #   TABLE   #
     #######################################
-    return df
+    report_manager.add_table_headers(name="complete table", df=df_animals)
 
 
 def get_activity_card(

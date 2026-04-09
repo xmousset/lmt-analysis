@@ -4,24 +4,16 @@
 
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
-from dim_c_brains.scripts.df_constructor import DataframeConstructor
-from dim_c_brains.scripts.plotting_functions import (
-    str_h_min,
-    floor_power10,
-    draw_nights,
-    line_with_shade,
-)
-from dim_c_brains.reports.overview_reports import get_activity_card
+from dim_c_brains.reports.overview_analysis import get_activity_card
 
 COLOR_MAP = px.colors.qualitative.Plotly
 
 
 def generic_reports(
     report_manager: HTMLReportManager,
-    df_constructor: DataframeConstructor,
+    df: pd.DataFrame | None,
     **kwargs,
 ):
     """Analyse mice activity and creates a generic dataframe using the given
@@ -34,10 +26,12 @@ def generic_reports(
         The hour when the night begins (default: 20).
     night_duration : int, optional
         The duration of the night in hours (default: 12).
+    fps : int, optional
+        The frames per second of the video to use for time calculations
+        (default: 30).
     """
 
     report_manager.reports_creation_focus("Trajectory")
-    df = df_constructor.get_df_trajectory()
 
     if df is None:
         report_manager.add_title(
@@ -48,7 +42,7 @@ def generic_reports(
         )
         return None
 
-    df["MIN_FROM_START"] = df["FRAME"] / df_constructor.binner.fps / 60
+    df["MIN_FROM_START"] = df["FRAME"] / kwargs.get("fps", 30) / 60
 
     #######################################
     #   Constants & Parameters   #
@@ -115,7 +109,7 @@ def generic_reports(
     """
     report_manager.add_report(
         name=report_title,
-        html_figure=fig,
+        html_or_figure=fig,
         top_note=report_description,
     )
 
@@ -257,10 +251,5 @@ def generic_reports(
     report_manager.add_report(
         name="How to get the complete table",
         top_note=text,
-        html_figure=code,
+        html_or_figure=code,
     )
-
-    ################
-    #   Return   #
-    ################
-    return df

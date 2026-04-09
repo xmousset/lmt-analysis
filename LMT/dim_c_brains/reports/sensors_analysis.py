@@ -2,26 +2,25 @@
 @author: xmousset
 """
 
+import pandas as pd
 import plotly.express as px
 
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
-from dim_c_brains.scripts.df_constructor import DataframeConstructor
 from dim_c_brains.scripts.plotting_functions import (
-    str_h_min,
-    floor_power10,
     draw_nights,
     line_with_shade,
 )
 
+from lmtanalysis.Measure import oneMinute, oneHour, oneDay
+
 
 def generic_reports(
     report_manager: HTMLReportManager,
-    df_constructor: DataframeConstructor,
+    df: pd.DataFrame | None,
     **kwargs,
 ):
-    """Get all sensors datas in a dataframe using the given
-    `DataFrameConstructor` and construct all the generic reports into the given
-    `HTMLReportManager` and returning the generated dataframe.
+    """Get all sensors datas in a dataframe using the given dataframe and
+    construct all the generic reports into the given `HTMLReportManager`.
 
     Other Parameters
     ----------------
@@ -35,16 +34,22 @@ def generic_reports(
         Whether to include the first value in plots. It impacts the
         rendering of columns graphs. By default, the first value is included.
         (default: True).
+    time_window : int, optional
+        The time window in frames to use for calculating the number of events
+        and the total duration of events in each time bin (default: 15 minutes
+        in frames, i.e., 15 * oneMinute).
+    fps : int, optional
+        The frames per second of the video to use for time calculations
+        (default: 30).
     """
 
     report_manager.reports_creation_focus("Sensors")
-    df = df_constructor.process_sensors()
 
     if df is None:
         print("No sensors data available")
         report_manager.add_report(
             name="Sensors data not available",
-            html_figure="""
+            html_or_figure="""
             No sensors data available in this dataset.
             """,
         )
@@ -106,9 +111,13 @@ def generic_reports(
     report_manager.add_card(
         name="Time interval unit",
         content=f"""
-        Calculated time bin is {df_constructor.binner.bin_size} frames.<br>
-        It corresponds to {df_constructor.binner.bin_size
-        / df_constructor.binner.fps / 60} minutes.
+        Calculated time bin is {
+            kwargs.get("time_window", 15 * oneMinute)
+        } frames.<br>It corresponds to {
+            kwargs.get("time_window", 15 * oneMinute)
+            / kwargs.get("fps", 30)
+            / 60
+        } minutes.
         """,
     )
     report_manager.add_card(
@@ -186,7 +195,7 @@ def generic_reports(
 
             report_manager.add_report(
                 name=report_title,
-                html_figure=fig,
+                html_or_figure=fig,
                 top_note=report_description,
                 graph_datas=df[
                     [
@@ -201,7 +210,7 @@ def generic_reports(
         else:
             report_manager.add_report(
                 name=f"{sensor_label} data not available",
-                html_figure=f"""
+                html_or_figure=f"""
                 No data available for {sensor} sensor in this dataset.
                 """,
             )
@@ -210,8 +219,3 @@ def generic_reports(
     #   TABLE   #
     #######################################
     report_manager.add_table_headers(name="complete table", df=df)
-
-    #######################################
-    #   Return   #
-    #######################################
-    return df
