@@ -83,7 +83,7 @@ class AnalysisSettingsWindow(QDialog):
             "Folder where analysis results will be saved."
         )
         out_btn = QPushButton("Browse")
-        btn_style = get_btn_style()
+        btn_style = get_btn_style(txt_color="white", bg_color="black")
         out_btn.setStyleSheet(btn_style)
         out_btn.setFixedWidth(80)
         out_btn.clicked.connect(self.select_output_folder)
@@ -125,7 +125,7 @@ class AnalysisSettingsWindow(QDialog):
         #######################################
 
         # events (known)
-        btn_style = get_btn_style(size=15, bold=True, bg_color="#1976D2")
+        btn_style = get_btn_style(txt_color="white", bg_color="blue")
         self.select_events_btn = QPushButton("Select Events")
         self.select_events_btn.setToolTip(
             "Select events to rebuild and analyse in the analysis process."
@@ -204,7 +204,7 @@ class AnalysisSettingsWindow(QDialog):
         #######################################
         #   ANALYZED AREA   #
         #######################################
-        btn_style = get_btn_style(size=15, bold=True, bg_color="#1976D2")
+        btn_style = get_btn_style(txt_color="white", bg_color="blue")
         self.select_area_btn = QPushButton("Select Area")
         self.select_area_btn.setToolTip(
             "Select the area to be analyzed in the analysis process."
@@ -483,7 +483,7 @@ class AnalysisSettingsWindow(QDialog):
         #######################################
         #   SETTINGS BUTTONS   #
         #######################################
-        btn_style = get_btn_style(size=13)
+        btn_style = get_btn_style(size=13, txt_color="white", bg_color="black")
 
         # load settings
         self.load_settings_btn = QPushButton("Load settings")
@@ -525,14 +525,14 @@ class AnalysisSettingsWindow(QDialog):
         #   VALIDATION BUTTONS   #
         #######################################
         # process
-        btn_style = get_btn_style(size=15, bold=True, bg_color="#1976D2")
+        btn_style = get_btn_style(txt_color="white", bg_color="blue")
         ok_btn = QPushButton("Process")
         ok_btn.setFixedWidth(100)
         ok_btn.setStyleSheet(btn_style)
         ok_btn.clicked.connect(self.on_accept)
 
         # cancel
-        btn_style = get_btn_style(size=15, bold=True)
+        btn_style = get_btn_style(txt_color="white", bg_color="black")
         cancel_btn = QPushButton("Cancel")
         cancel_btn.setFixedWidth(100)
         cancel_btn.setStyleSheet(btn_style)

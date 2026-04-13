@@ -150,7 +150,7 @@ class AreaSelectionWindow(QDialog):
             "Click and drag to adjust the selection area"
         )
 
-        btn_style = get_btn_style(size=15, bold=True)
+        btn_style = get_btn_style(txt_color="white", bg_color="black")
 
         self.minus5_btn = QPushButton("-5")
         self.minus5_btn.setStyleSheet(btn_style)
@@ -263,7 +263,7 @@ class AreaSelectionWindow(QDialog):
         self.spin_box_rows.append(height_row)
 
         # Set buttons
-        btn_style = get_btn_style(size=15, bold=True)
+        btn_style = get_btn_style(txt_color="white", bg_color="black")
         self.set_filter_btn = QPushButton()
         self.set_filter_btn.setFixedWidth(120)
         self.set_filter_btn.setText("Set Filter")
@@ -278,7 +278,7 @@ class AreaSelectionWindow(QDialog):
         self.spin_box_rows.append(set_row)
 
         # Reset button
-        btn_style = get_btn_style(size=15, bold=True)
+        btn_style = get_btn_style(txt_color="white", bg_color="black")
         self.remove_filter_btn = QPushButton()
         self.remove_filter_btn.setFixedWidth(120)
         self.remove_filter_btn.setText("Remove Filter")
@@ -295,13 +295,13 @@ class AreaSelectionWindow(QDialog):
         self.spin_box_rows.append(reset_row)
 
         # OK and Cancel buttons
-        btn_style = get_btn_style(size=15, bold=True, bg_color="#449225")
+        btn_style = get_btn_style(txt_color="white", bg_color="green")
         ok_btn = QPushButton("OK")
         ok_btn.setFixedWidth(80)
         ok_btn.setStyleSheet(btn_style)
         ok_btn.clicked.connect(self.on_accept)
 
-        btn_style = get_btn_style(size=15, bold=True, bg_color="#D24D19")
+        btn_style = get_btn_style(txt_color="white", bg_color="red")
         cancel_btn = QPushButton("Cancel")
         cancel_btn.setFixedWidth(80)
         cancel_btn.setStyleSheet(btn_style)

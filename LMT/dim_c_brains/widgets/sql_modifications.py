@@ -69,7 +69,7 @@ class UpdateDatabaseInfo(QDialog):
         layout = QVBoxLayout()
         btn_layout = QHBoxLayout()
 
-        btn_style = get_btn_style()
+        btn_style = get_btn_style(txt_color="white", bg_color="black")
 
         self.validate_btn = QPushButton("Validate")
         self.validate_btn.setStyleSheet(btn_style)

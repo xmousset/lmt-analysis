@@ -50,7 +50,7 @@ class ComparisonSettingsWindow(QDialog):
             "Folder where analysis results will be saved."
         )
         out_btn = QPushButton("Browse")
-        btn_style = get_btn_style()
+        btn_style = get_btn_style(txt_color="white", bg_color="black")
         out_btn.setStyleSheet(btn_style)
         out_btn.setFixedWidth(80)
         out_btn.clicked.connect(self.select_output_folder)
@@ -129,14 +129,14 @@ class ComparisonSettingsWindow(QDialog):
         #   VALIDATION BUTTONS   #
         #######################################
         # process
-        btn_style = get_btn_style(size=15, bold=True, bg_color="#1976D2")
+        btn_style = get_btn_style(txt_color="white", bg_color="blue")
         ok_btn = QPushButton("Process")
         ok_btn.setFixedWidth(100)
         ok_btn.setStyleSheet(btn_style)
         ok_btn.clicked.connect(self.on_accept)
 
         # cancel
-        btn_style = get_btn_style(size=15, bold=True)
+        btn_style = get_btn_style(txt_color="white", bg_color="black")
         cancel_btn = QPushButton("Cancel")
         cancel_btn.setFixedWidth(100)
         cancel_btn.setStyleSheet(btn_style)

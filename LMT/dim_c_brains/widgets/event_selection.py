@@ -65,7 +65,7 @@ class EventSelectionWindow(QDialog):
         scroll_area.setWidget(grid_widget)
         layout.addWidget(scroll_area)
 
-        btn_style = get_btn_style(size=15, bold=True, bg_color="#1976D2")
+        btn_style = get_btn_style(txt_color="white", bg_color="blue")
         self.proceed_btn = QPushButton("Validate Selection")
         self.proceed_btn.setStyleSheet(btn_style)
         self.proceed_btn.clicked.connect(self.on_validation)

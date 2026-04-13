@@ -227,7 +227,6 @@ class DatabaseAnalysisWidget(QWidget):
         self.database_path: Path | None = None
         self.threadpool = QThreadPool()
         self.threadpool.setMaxThreadCount(1)
-        self.first_load = True
         self._init_ui()
 
     def _init_ui(self):
@@ -250,21 +249,21 @@ class DatabaseAnalysisWidget(QWidget):
         #######################################
 
         # database button
-        btn_style = get_btn_style(size=15, bold=True, bg_color="#1976D2")
+        btn_style = get_btn_style(txt_color="white", bg_color="blue")
         self.load_db_btn = QPushButton("Load Database")
         self.load_db_btn.setStyleSheet(btn_style)
         self.load_db_btn.setFixedSize(150, 50)
         self.load_db_btn.clicked.connect(self.on_load_db)
 
-        btn_style = get_btn_style(size=15, bold=True)
-
         # update animals information button
+        btn_style = get_btn_style(txt_color="white", bg_color="black")
         self.update_info_btn = QPushButton("Animals Infos")
         self.update_info_btn.setStyleSheet(btn_style)
         self.update_info_btn.setFixedSize(150, 50)
         self.update_info_btn.clicked.connect(self.on_update_info)
 
         # continue button
+        btn_style = get_btn_style(txt_color="white", bg_color="red")
         self.continue_btn = QPushButton("Continue")
         self.continue_btn.setStyleSheet(btn_style)
         self.continue_btn.setFixedSize(150, 50)
@@ -356,13 +355,14 @@ class DatabaseAnalysisWidget(QWidget):
 
         self.info_label.setText(info_html)
 
-    def modify_btns_after_first_load(self):
-        """Modify buttons style after the first database is loaded."""
-        if self.first_load:
-            btn_style = get_btn_style(size=15, bold=True, bg_color="#1976D2")
-            self.update_info_btn.setStyleSheet(btn_style)
-            self.continue_btn.setStyleSheet(btn_style)
-            self.first_load = False
+    def adjust_continue_btn_color(self):
+        """Modify continue button style depending on the database load
+        status."""
+        if self.database_path:
+            btn_style = get_btn_style(txt_color="white", bg_color="green")
+        else:
+            btn_style = get_btn_style(txt_color="white", bg_color="red")
+        self.continue_btn.setStyleSheet(btn_style)
 
     def on_load_db(self):
         """Launches a file dialog for loading database."""
@@ -377,7 +377,7 @@ class DatabaseAnalysisWidget(QWidget):
         self.database_path = Path(file_path)
         self.update_database_info()
 
-        self.modify_btns_after_first_load()
+        self.adjust_continue_btn_color()
 
     def warning_message_load_database(self):
         """Check if a database is loaded, and show a warning if not."""
@@ -568,7 +568,6 @@ class AnalysesComparisonWidget(QWidget):
         self.analyses_path: list[Path] = []
         self.threadpool = QThreadPool()
         self.threadpool.setMaxThreadCount(1)
-        self.first_load = True
         self._init_ui()
 
     def _init_ui(self):
@@ -590,32 +589,50 @@ class AnalysesComparisonWidget(QWidget):
         #   Buttons row   #
         #######################################
 
-        btn_style = get_btn_style(size=15, bold=True, bg_color="#1976D2")
+        btn_style = get_btn_style(txt_color="white", bg_color="blue")
 
-        # add analysis button
-        self.add_analysis_btn = QPushButton("Add")
-        self.add_analysis_btn.setStyleSheet(btn_style)
-        self.add_analysis_btn.setFixedSize(100, 50)
-        self.add_analysis_btn.clicked.connect(self.on_load_single_analysis)
+        # add one analysis button
+        self.add_one_btn = QPushButton("Add one")
+        self.add_one_btn.setToolTip(
+            "<b>Add a single analysis.</b><br>"
+            "The selected folder must have the following file:<br>"
+            f"<i>{ComparisonSettings.MAIN_TABLE}</i>"
+        )
+        self.add_one_btn.setStyleSheet(btn_style)
+        self.add_one_btn.setFixedSize(120, 50)
+        self.add_one_btn.clicked.connect(self.on_load_one)
 
-        btn_style = get_btn_style(size=15, bold=True)
+        # add multiple analysis button
+        self.add_multiple_btn = QPushButton("Add multiple")
+        self.add_multiple_btn.setToolTip(
+            "<b>Add all analyses found in folder.</b><br>"
+            "The selected folder must contain at least one valid analysis."
+            "A valid analysis must have the following file:<br>"
+            f"<i>{ComparisonSettings.MAIN_TABLE}</i>"
+        )
+        self.add_multiple_btn.setStyleSheet(btn_style)
+        self.add_multiple_btn.setFixedSize(120, 50)
+        self.add_multiple_btn.clicked.connect(self.on_load_multiple)
 
         # remove analysis button
+        btn_style = get_btn_style(txt_color="white", bg_color="black")
         self.remove_analyses_btn = QPushButton("Remove")
         self.remove_analyses_btn.setStyleSheet(btn_style)
-        self.remove_analyses_btn.setFixedSize(100, 50)
+        self.remove_analyses_btn.setFixedSize(120, 50)
         self.remove_analyses_btn.clicked.connect(self.on_remove_analysis)
 
         # continue button
+        btn_style = get_btn_style(txt_color="white", bg_color="red")
         self.continue_btn = QPushButton("Continue")
         self.continue_btn.setStyleSheet(btn_style)
-        self.continue_btn.setFixedSize(150, 50)
+        self.continue_btn.setFixedSize(120, 50)
         self.continue_btn.clicked.connect(self.on_continue)
 
         # row layout
         buttons_row = QHBoxLayout()
         buttons_row.addStretch(1)
-        buttons_row.addWidget(self.add_analysis_btn)
+        buttons_row.addWidget(self.add_one_btn)
+        buttons_row.addWidget(self.add_multiple_btn)
         buttons_row.addWidget(self.remove_analyses_btn)
         buttons_row.addWidget(self.continue_btn)
         buttons_row.addStretch(1)
@@ -668,19 +685,20 @@ class AnalysesComparisonWidget(QWidget):
             msg,
         )
 
-    def modify_btns_after_first_load(self):
-        """Modify buttons style after the first analysis is loaded."""
-        if self.first_load:
-            btn_style = get_btn_style(size=15, bold=True, bg_color="#1976D2")
-            self.remove_analyses_btn.setStyleSheet(btn_style)
-            self.continue_btn.setStyleSheet(btn_style)
-            self.first_load = False
+    def adjust_continue_btn_color(self):
+        """Modify continue button style depending on the analyses path load
+        status."""
+        if self.analyses_path:
+            btn_style = get_btn_style(txt_color="white", bg_color="green")
+        else:
+            btn_style = get_btn_style(txt_color="white", bg_color="red")
+        self.continue_btn.setStyleSheet(btn_style)
 
-    def on_load_single_analysis(self):
+    def on_load_one(self):
         """Launches a file dialog for loading a single analysis."""
         dir_path = QFileDialog.getExistingDirectory(
             self,
-            "Select Analyses Directory",
+            "LMT-EYE - Select One Analysis Directory",
             str(Path.home()),
             QFileDialog.Option.ShowDirsOnly,
         )
@@ -695,13 +713,13 @@ class AnalysesComparisonWidget(QWidget):
         self.analyses_path.append(dir_path)
         self.update_analyses_info()
 
-        self.modify_btns_after_first_load()
+        self.adjust_continue_btn_color()
 
-    def on_load_multiple_analyses(self):
+    def on_load_multiple(self):
         """Launches a file dialog for loading multiple analyses."""
         dir_path = QFileDialog.getExistingDirectory(
             self,
-            "Select Analyses Directory",
+            "LMT-EYE - Select One Directory That Contains Multiple Analyses",
             str(Path.home()),
             QFileDialog.Option.ShowDirsOnly,
         )
@@ -721,7 +739,7 @@ class AnalysesComparisonWidget(QWidget):
         self.analyses_path.extend(analyses_path)
         self.update_analyses_info()
 
-        self.modify_btns_after_first_load()
+        self.adjust_continue_btn_color()
 
     def on_remove_analysis(self):
         """Remove the last loaded analysis."""
@@ -746,6 +764,8 @@ class AnalysesComparisonWidget(QWidget):
         self.analyses_path.remove(analysis_dict[analysis_name])
         print(f"Removed analysis: {analysis_name}")
         self.update_analyses_info()
+
+        self.adjust_continue_btn_color()
 
     def warning_message_load_analyses(self):
         """Check if analyses are loaded, and show a warning if not."""

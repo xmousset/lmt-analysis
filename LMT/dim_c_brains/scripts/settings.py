@@ -439,7 +439,7 @@ class ComparisonSettings(GenericSettings):
     @staticmethod
     def convert_in_str(initial_dict: dict[str, Any]) -> dict[str, Any]:
         """Convert the dict settings values in string."""
-        new_dict = new_dict = initial_dict.copy()
+        new_dict = initial_dict.copy()
 
         if new_dict["output_folder"] is not None:
             new_dict["output_folder"] = str(new_dict["output_folder"])
@@ -449,7 +449,7 @@ class ComparisonSettings(GenericSettings):
     @staticmethod
     def convert_from_str(initial_dict: dict[str, Any]) -> dict[str, Any]:
         """Convert the dict settings values from string to the correct type."""
-        new_dict = new_dict = initial_dict.copy()
+        new_dict = initial_dict.copy()
 
         if new_dict["output_folder"] is not None:
             new_dict["output_folder"] = Path(new_dict["output_folder"])
