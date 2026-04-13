@@ -14,7 +14,7 @@ from dim_c_brains.scripts.events_and_modules import ALL_EVENTS
 from dim_c_brains.widgets.pyqt6_tools import get_btn_style
 
 
-class EventSelectionDialog(QDialog):
+class EventSelectionWindow(QDialog):
     """PyQt6 Dialog to select which analysis to perform"""
 
     def __init__(
@@ -29,7 +29,7 @@ class EventSelectionDialog(QDialog):
         self._init_ui()
 
     def _init_ui(self):
-        self.setWindowTitle("Select all wanted events")
+        self.setWindowTitle("LMT-EYE - Analysis Settings - Event Selection")
         self.setFixedSize(1000, 400)
         layout = QVBoxLayout()
 
@@ -65,7 +65,7 @@ class EventSelectionDialog(QDialog):
         scroll_area.setWidget(grid_widget)
         layout.addWidget(scroll_area)
 
-        btn_style = get_btn_style(size=15, bold=True, bg_color="#1976D2")
+        btn_style = get_btn_style(txt_color="white", bg_color="blue")
         self.proceed_btn = QPushButton("Validate Selection")
         self.proceed_btn.setStyleSheet(btn_style)
         self.proceed_btn.clicked.connect(self.on_validation)
@@ -96,6 +96,6 @@ def test_event_selection_dialog():
 
     app = QApplication(sys.argv)
     preselected = {"Flickering", "Stop"}
-    dialog = EventSelectionDialog(None, preselected_events=preselected)
+    dialog = EventSelectionWindow(None, preselected_events=preselected)
     if dialog.exec() == QDialog.DialogCode.Accepted:
         print("Selected events:", dialog.selected_events)

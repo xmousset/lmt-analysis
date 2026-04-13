@@ -15,7 +15,7 @@ from lmtanalysis.Event import EventTimeLine
 from lmtanalysis.Animal import Animal, AnimalPool
 
 
-class DataFrameConstructor:
+class DataframeConstructor:
     """A class to construct pandas DataFrames from AnimalPool easy
     data manipulation and analysis. It is designed to handle large time
     windows (> oneDay), by processing data in chunks to reduce memory usage. By
@@ -190,7 +190,7 @@ class DataFrameConstructor:
 
         return (counts, durations)
 
-    def get_df_event(
+    def get_df_event_with_iterator(
         self, event: str, bin_iterator: list[tuple[int, int]] | None = None
     ):
         """Get a DataFrame containing event counts and durations for specified
@@ -229,7 +229,7 @@ class DataFrameConstructor:
         df = pd.DataFrame(results)
         return df
 
-    def process_event(self, event: str):
+    def get_df_event(self, event: str):
         """Process data between start and end frames to get a DataFrame
         containing the specified event counts and durations. It will process
         the whole dataset using the process window.
@@ -245,7 +245,7 @@ class DataFrameConstructor:
                 f"EVENT processing ({event}) for frames {bin_iterator[0][0]} to "
                 f"{bin_iterator[-1][1]}"
             )
-            processed_df = self.get_df_event(event, bin_iterator)
+            processed_df = self.get_df_event_with_iterator(event, bin_iterator)
             if df is None:
                 df = processed_df
             else:
@@ -255,9 +255,9 @@ class DataFrameConstructor:
             print("Unable to create the event dataframe")
             return None
 
-        return self.sort_rfid_as_category(df)
+        return df
 
-    def get_df_activity(
+    def get_df_activity_with_iterator(
         self,
         bin_iterator: list[tuple[int, int]] | None = None,
         filter_flickering: bool = False,
@@ -353,7 +353,7 @@ class DataFrameConstructor:
         df = pd.DataFrame(results)
         return df
 
-    def process_activity(
+    def get_df_activity(
         self,
         filter_flickering: bool = False,
         filter_stop: bool = False,
@@ -372,7 +372,7 @@ class DataFrameConstructor:
                 f"ACTIVITY processing for frames {bin_iterator[0][0]} to "
                 f"{bin_iterator[-1][1]}"
             )
-            processed_df = self.get_df_activity(
+            processed_df = self.get_df_activity_with_iterator(
                 bin_iterator, filter_flickering, filter_stop
             )
             if df is None:
@@ -384,7 +384,7 @@ class DataFrameConstructor:
             print("Unable to create the activity dataframe")
             return None
 
-        return self.sort_rfid_as_category(df)
+        return df
 
     def get_df_trajectory(self) -> pd.DataFrame | None:
         """Get a DataFrame containing trajectory data for all animals.
@@ -443,22 +443,6 @@ class DataFrameConstructor:
             print("Unable to create the activity dataframe")
             return None
 
-        return self.sort_rfid_as_category(df)
-
-    def sort_rfid_as_category(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Set the RFID column as a categorical data (sorted) type for better
-        performance in plotting and analysis.
-
-        Args:
-            df (pd.DataFrame): The input DataFrame with an 'RFID' column.
-
-        Returns:
-            pd.DataFrame: The modified DataFrame with 'RFID' as a category.
-        """
-        sorted_rfids = sorted(df["RFID"].unique())
-        df["RFID"] = pd.Categorical(
-            df["RFID"], categories=sorted_rfids, ordered=True
-        )
         return df
 
     def calculate_sensors_statistics(
@@ -500,7 +484,7 @@ class DataFrameConstructor:
             )
         return results
 
-    def get_df_sensors(
+    def get_df_sensors_with_iterator(
         self, bin_iterator: list[tuple[int, int]] | None = None
     ):
 
@@ -564,7 +548,7 @@ class DataFrameConstructor:
         df = pd.DataFrame(results)
         return df
 
-    def process_sensors(self):
+    def get_df_sensors(self):
         """Process data between start and end frames to get a DataFrame
         containing sensors data. It will process the whole dataset using
         the process window.
@@ -579,7 +563,9 @@ class DataFrameConstructor:
                 f"SENSORS processing for frames {bin_iterator[0][0]} to "
                 f"{bin_iterator[-1][1]}"
             )
-            processed_df = self.get_df_sensors(bin_iterator=bin_iterator)
+            processed_df = self.get_df_sensors_with_iterator(
+                bin_iterator=bin_iterator
+            )
             if df is None:
                 df = processed_df
             else:

@@ -121,7 +121,7 @@ class AreaSelectionGraphicsView(QGraphicsView):
         return self.area.isVisible()
 
 
-class AreaSelectionDialog(QDialog):
+class AreaSelectionWindow(QDialog):
     """PyQt6 Dialog to select the area to be analyzed"""
 
     def __init__(
@@ -132,7 +132,7 @@ class AreaSelectionDialog(QDialog):
         super().__init__(parent)
         self.selected_area = area
         """(x_min, y_min, x_max, y_max) in *cm*. If None, analyze all data."""
-        self.setWindowTitle("Select Analysis Area")
+        self.setWindowTitle("LMT-EYE - Analysis Settings - Area Selection")
         self.setFixedSize(500, 400)
         self._init_ui()
 
@@ -150,7 +150,7 @@ class AreaSelectionDialog(QDialog):
             "Click and drag to adjust the selection area"
         )
 
-        btn_style = get_btn_style(size=15, bold=True)
+        btn_style = get_btn_style(txt_color="white", bg_color="black")
 
         self.minus5_btn = QPushButton("-5")
         self.minus5_btn.setStyleSheet(btn_style)
@@ -263,7 +263,7 @@ class AreaSelectionDialog(QDialog):
         self.spin_box_rows.append(height_row)
 
         # Set buttons
-        btn_style = get_btn_style(size=15, bold=True)
+        btn_style = get_btn_style(txt_color="white", bg_color="black")
         self.set_filter_btn = QPushButton()
         self.set_filter_btn.setFixedWidth(120)
         self.set_filter_btn.setText("Set Filter")
@@ -278,7 +278,7 @@ class AreaSelectionDialog(QDialog):
         self.spin_box_rows.append(set_row)
 
         # Reset button
-        btn_style = get_btn_style(size=15, bold=True)
+        btn_style = get_btn_style(txt_color="white", bg_color="black")
         self.remove_filter_btn = QPushButton()
         self.remove_filter_btn.setFixedWidth(120)
         self.remove_filter_btn.setText("Remove Filter")
@@ -295,13 +295,13 @@ class AreaSelectionDialog(QDialog):
         self.spin_box_rows.append(reset_row)
 
         # OK and Cancel buttons
-        btn_style = get_btn_style(size=15, bold=True, bg_color="#449225")
+        btn_style = get_btn_style(txt_color="white", bg_color="green")
         ok_btn = QPushButton("OK")
         ok_btn.setFixedWidth(80)
         ok_btn.setStyleSheet(btn_style)
         ok_btn.clicked.connect(self.on_accept)
 
-        btn_style = get_btn_style(size=15, bold=True, bg_color="#D24D19")
+        btn_style = get_btn_style(txt_color="white", bg_color="red")
         cancel_btn = QPushButton("Cancel")
         cancel_btn.setFixedWidth(80)
         cancel_btn.setStyleSheet(btn_style)
@@ -505,6 +505,6 @@ def test_area_selection_dialog():
     from PyQt6.QtWidgets import QApplication
 
     app = QApplication(sys.argv)
-    dialog = AreaSelectionDialog(None)
+    dialog = AreaSelectionWindow(None)
     if dialog.exec() == QDialog.DialogCode.Accepted:
         print("Selected area:", dialog.selected_area)

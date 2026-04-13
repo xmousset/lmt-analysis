@@ -3,8 +3,6 @@
 @author: xmousset
 """
 
-import os
-import sys
 from pathlib import Path
 from typing import Literal
 
@@ -200,14 +198,14 @@ class YesNoQuestion(QDialog):
         btn_layout.setSpacing(40)
 
         # YES button
-        btn_style = get_btn_style(size=15, bold=True, bg_color="#449225")
+        btn_style = get_btn_style(txt_color="white", bg_color="green")
         yes_btn = QPushButton("Yes")
         yes_btn.clicked.connect(self.yes_clicked)
         yes_btn.setFixedWidth(90)
         yes_btn.setStyleSheet(btn_style)
 
         # NO button
-        btn_style = get_btn_style(size=15, bold=True, bg_color="#D24D19")
+        btn_style = get_btn_style(txt_color="white", bg_color="red")
         no_btn = QPushButton("No")
         no_btn.clicked.connect(self.no_clicked)
         no_btn.setFixedWidth(90)
@@ -223,11 +221,30 @@ class YesNoQuestion(QDialog):
         self.setLayout(layout)
 
 
+def btn_colors(name: Literal["blue", "green", "red"] | str) -> str:
+    if name.startswith("#"):
+        return name
+
+    match name:
+        case "white":
+            return "#f0f0f0"
+        case "black":
+            return "#333333"
+        case "blue":
+            return "#2065AA"
+        case "green":
+            return "#267C47"
+        case "red":
+            return "#911A3E"
+        case _:
+            return "#000000"
+
+
 def get_btn_style(
-    size: int | None = None,
-    bold: bool = False,
-    txt_color: str | None = None,
-    bg_color: str | None = None,
+    size: int = 15,
+    bold: bool = True,
+    txt_color: str = "white",
+    bg_color: str = "black",
     border_color: str | None = None,
     border_size: float = 1.5,
     hover_txt_color: str | None = None,
@@ -245,16 +262,11 @@ def get_btn_style(
     if bold:
         style += f"font-weight: bold; "
 
-    if bg_color is None:
-        bg_color = "#333333"
-    style += f"background-color: {bg_color}; "
-
-    if txt_color is None:
-        txt_color = "#f0f0f0"
-    style += f"color: {txt_color}; "
+    style += f"background-color: {btn_colors(bg_color)}; "
+    style += f"color: {btn_colors(txt_color)}; "
 
     if border_color is not None:
-        style += f"border: {border_size}px solid {border_color}; "
+        style += f"border: {border_size}px solid {btn_colors(border_color)}; "
     style += f"border-radius: {radius}px; "
 
     style += "margin: 6px 6px; padding: 3px 3px; "
@@ -265,15 +277,15 @@ def get_btn_style(
 
     if hover_bg_color is None:
         hover_bg_color = txt_color
-    style += f"background-color: {hover_bg_color}; "
+    style += f"background-color: {btn_colors(hover_bg_color)}; "
 
     if hover_txt_color is None:
         hover_txt_color = bg_color
-    style += f"color: {hover_txt_color}; "
+    style += f"color: {btn_colors(hover_txt_color)}; "
 
     if hover_border_color is not None:
-        hover_border_color = bg_color
-        style += f"border: {border_size}px solid {hover_border_color};"
+        style += f"border: {border_size}px "
+        style += f"solid {btn_colors(hover_border_color)}; "
     style += f"border-radius: {radius}px; "
 
     style += " }"

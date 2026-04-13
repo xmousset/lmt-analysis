@@ -4,69 +4,51 @@
 
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
-from dim_c_brains.scripts.dataframe_constructor import DataFrameConstructor
-from dim_c_brains.scripts.plotting_functions import (
-    str_h_min,
-    floor_power10,
-    draw_nights,
-    line_with_shade,
-)
-from dim_c_brains.reports.overview_reports import get_activity_card
+from dim_c_brains.scripts.settings import AnalysisSettings
 
 COLOR_MAP = px.colors.qualitative.Plotly
 
 
 def generic_reports(
     report_manager: HTMLReportManager,
-    df_constructor: DataFrameConstructor,
-    **kwargs,
+    df: pd.DataFrame | None,
+    settings: AnalysisSettings,
 ):
-    """Analyse mice activity and creates a generic dataframe using the given
+    """Analyse animal trajectory and creates a generic dataframe using the given
     `DataFrameConstructor` and construct all the generic reports into the given
-    `HTMLReportManager` and returning the generated dataframe.
-
-    Other Parameters
-    ----------------
-    night_begin : int, optional
-        The hour when the night begins (default: 20).
-    night_duration : int, optional
-        The duration of the night in hours (default: 12).
-    """
+    `HTMLReportManager` and returning the generated dataframe."""
 
     report_manager.reports_creation_focus("Trajectory")
-    df = df_constructor.get_df_trajectory()
 
     if df is None:
         report_manager.add_title(
-            name="Analysis of mice trajectory",
+            name="Analysis of animal trajectory",
             content="""
             No data available for the selected time interval. Please adjust
             the processing limits or check the database connection.""",
         )
         return None
 
-    df["MIN_FROM_START"] = df["FRAME"] / df_constructor.binner.fps / 60
+    df["MIN_FROM_START"] = df["FRAME"] / settings.fps / 60
 
     #######################################
     #   Constants & Parameters   #
     #######################################
 
-    plot_parameters = {
-        "color": "RFID",
-        "category_orders": {"RFID": list(df["RFID"].cat.categories)},
-    }
+    comparator = settings.report_color
+
+    plot_parameters = settings.get_plot_parameters(df)
 
     #######################################
     #   Titles   #
     #######################################
 
     report_manager.add_title(
-        name=f"Analysis of mice trajectory",
+        name=f"Analysis of animal trajectory",
         content=f"""
-        This section presents the analysis of mice trajectory recorded in the
+        This section presents the analysis of animal trajectory recorded in the
         dataset. You <b>CANNOT</b> download the underlying data used for the
         plots because the data are not binned.""",
     )
@@ -115,7 +97,7 @@ def generic_reports(
     """
     report_manager.add_report(
         name=report_title,
-        html_figure=fig,
+        html_or_figure=fig,
         top_note=report_description,
     )
 
@@ -123,10 +105,11 @@ def generic_reports(
     #   Density contour heat map   #
     #######################################
     figs = []
-    for i, rfid in enumerate(plot_parameters["category_orders"]["RFID"]):
-        df_animal = df[df["RFID"] == rfid]
+
+    for i, c in enumerate(plot_parameters["category_orders"][comparator]):
+        reduce_df = df[df[comparator] == c]
         fig = px.density_contour(
-            df_animal,
+            reduce_df,
             x="X",
             y="Y",
             color_discrete_sequence=[COLOR_MAP[i]],
@@ -146,7 +129,7 @@ def generic_reports(
             xaxis=dict(scaleanchor="y", scaleratio=1),
             yaxis=dict(scaleanchor="x", scaleratio=1),
             showlegend=False,
-            title=f"RFID: {rfid}",
+            title=f"{comparator}: {c}",
             plot_bgcolor="rgba(0,0,0,0)",
         )
         figs.append(fig)
@@ -171,10 +154,10 @@ def generic_reports(
     #######################################
 
     figs = []
-    for i, rfid in enumerate(plot_parameters["category_orders"]["RFID"]):
-        df_animal = df[df["RFID"] == rfid]
+    for c in plot_parameters["category_orders"][comparator]:
+        reduce_df = df[df[comparator] == c]
         fig = px.scatter(
-            df_animal,
+            reduce_df,
             x="X",
             y="Y",
             color="MIN_FROM_START",
@@ -191,7 +174,7 @@ def generic_reports(
             xaxis=dict(scaleanchor="y", scaleratio=1),
             yaxis=dict(scaleanchor="x", scaleratio=1),
             showlegend=False,
-            title=f"RFID: {rfid}",
+            title=f"{comparator}: {c}",
             plot_bgcolor="rgba(0,0,0,0)",
         )
         figs.append(fig)
@@ -257,10 +240,5 @@ def generic_reports(
     report_manager.add_report(
         name="How to get the complete table",
         top_note=text,
-        html_figure=code,
+        html_or_figure=code,
     )
-
-    ################
-    #   Return   #
-    ################
-    return df

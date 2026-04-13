@@ -5,30 +5,23 @@
 import sqlite3
 from typing import Any, Callable
 from pathlib import Path
-from datetime import datetime
 
 import pandas as pd
 
-from dim_c_brains.lmt_eye_settings import LMTEYESettings
+from dim_c_brains.reports import activity, event, overview, sensors, trajectory
+from dim_c_brains.scripts.settings import AnalysisSettings
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
-from dim_c_brains.scripts.dataframe_constructor import DataFrameConstructor
+from dim_c_brains.scripts.df_constructor import DataframeConstructor
 from dim_c_brains.scripts.events_rebuilder import EventsRebuilder
-from dim_c_brains.reports import (
-    activity_reports,
-    trajectory_reports,
-    event_reports,
-    overview_reports,
-    sensors_reports,
-)
 from dim_c_brains.scripts.tkinter_tools import (
     select_sqlite_file,
     select_folder,
 )
 
 
-class LMTEYEDataAnalyzer:
-    """Class to analyze LMT-EYE data, generate reports and save them to an output
-    folder."""
+class DatabaseAnalyzer:
+    """Class to analyze LMT database, generate reports and save them to an
+    output folder."""
 
     @staticmethod
     def get_informations(database_path: Path):
@@ -78,7 +71,7 @@ class LMTEYEDataAnalyzer:
     def __init__(
         self,
         database_path: Path | str | None = None,
-        settings: LMTEYESettings | None = None,
+        settings: AnalysisSettings | None = None,
     ):
         """
         LMT-EYE analysis workflow for LMT database. Can rebuild events,
@@ -89,9 +82,9 @@ class LMTEYEDataAnalyzer:
         database_path : Path, optional
             Path to the SQLite data file. If not provided, prompts user to
             select file.
-        settings : LMTEYESettings, optional
+        settings : AnalysisSettings, optional
             Analysis settings. If not provided, defaults to a new instance
-            of LMTEYESettings.
+            of AnalysisSettings.
         """
         if isinstance(database_path, str):
             database_path = Path(database_path)
@@ -100,7 +93,7 @@ class LMTEYEDataAnalyzer:
             self.database_path = self.choose_sqlite_file()
 
         if settings is None:
-            self.settings = LMTEYESettings()
+            self.settings = AnalysisSettings()
         else:
             self.settings = settings
 
@@ -112,7 +105,7 @@ class LMTEYEDataAnalyzer:
             return
         self.database_path = database_path
 
-    def choose_output_folder(self, output_folder: Path | str | None = None):
+    def set_output_folder(self, output_folder: Path | str | None = None):
         """Choose the output folder for the analysis reports. If no folder path
         is provided, prompts the user to select a folder."""
         output_folder = select_folder()
@@ -175,8 +168,7 @@ class LMTEYEDataAnalyzer:
             raise ValueError("No database path provided for analysis.")
 
         self.settings.logic_update()
-        dic_settings = self.settings.get_as_dict()
-        dic_settings["database_path"] = self.database_path
+        self.settings.database_path = self.database_path
 
         connection = sqlite3.connect(self.database_path)
         repo_manager = HTMLReportManager()
@@ -186,7 +178,7 @@ class LMTEYEDataAnalyzer:
             f"{self.settings.processing_limits[1]}"
         )
 
-        df_constructor = DataFrameConstructor(
+        df_constructor = DataframeConstructor(
             connection=connection,
             bin_rounding=self.settings.bin_rounding,
             bin_window=self.settings.time_window,
@@ -198,109 +190,95 @@ class LMTEYEDataAnalyzer:
         )
 
         if not self.settings.events:
-            events_df = None
+            all_event_df = None
             sorted_events = []
         else:
-            events_df = pd.DataFrame()
+            all_event_df = pd.DataFrame()
             sorted_events = sorted(self.settings.events)
 
-        max_progression = 4 + len(sorted_events)
-        current_progression = 0
-        if progress_callback:
-            progress_callback(current_progression, max_progression)
-        else:
-            print(
-                f"Progress: {current_progression}/{max_progression} "
-                f"({(current_progression/max_progression)*100:.1f}%)"
-            )
+        progression: list = [0, 4 + len(sorted_events), progress_callback]
+        self.update_progression(*progression)
 
-        activity_df = activity_reports.generic_reports(
-            repo_manager, df_constructor, **dic_settings
+        # ACTIVITY
+        # ----------------
+        activity_df = df_constructor.get_df_activity(
+            self.settings.filter_flickering,
+            self.settings.filter_stop,
         )
-        current_progression += 1
-        if progress_callback:
-            progress_callback(current_progression, max_progression)
-        else:
-            print(
-                f"Progress: {current_progression}/{max_progression} "
-                f"({(current_progression/max_progression)*100:.1f}%)"
-            )
-
-        trajectory_df = trajectory_reports.generic_reports(
-            repo_manager, df_constructor, **dic_settings
-        )
-        current_progression += 1
-        if progress_callback:
-            progress_callback(current_progression, max_progression)
-        else:
-            print(
-                f"Progress: {current_progression}/{max_progression} "
-                f"({(current_progression/max_progression)*100:.1f}%)"
-            )
-
-        if events_df is not None:
-            for event_name in sorted_events:
-                events_df = pd.concat(
-                    [
-                        events_df,
-                        event_reports.generic_reports(
-                            repo_manager,
-                            df_constructor,
-                            event_name=event_name,
-                            **dic_settings,
-                        ),
-                    ]
-                )
-                current_progression += 1
-                if progress_callback:
-                    progress_callback(current_progression, max_progression)
-                else:
-                    print(
-                        f"Progress: {current_progression}/{max_progression} "
-                        f"({(current_progression/max_progression)*100:.1f}%)"
-                    )
-
-        sensors_df = sensors_reports.generic_reports(
-            repo_manager, df_constructor, **dic_settings
-        )
-        current_progression += 1
-        if progress_callback:
-            progress_callback(current_progression, max_progression)
-        else:
-            print(
-                f"Progress: {current_progression}/{max_progression} "
-                f"({(current_progression/max_progression)*100:.1f}%)"
-            )
-
-        animal_df = overview_reports.generic_reports(
+        activity.generic_reports(
             repo_manager,
-            df_constructor,
-            df_activity=activity_df,
-            df_events=events_df,
-            df_sensors=sensors_df,
-            **dic_settings,
+            activity_df,
+            self.settings,
         )
-        current_progression += 1
-        if progress_callback:
-            progress_callback(current_progression, max_progression)
-        else:
-            print(
-                f"Progress: {current_progression}/{max_progression} "
-                f"({(current_progression/max_progression)*100:.1f}%)"
-            )
+        progression[0] += 1
+        self.update_progression(*progression)
 
+        # TRAJECTORY
+        # ----------------
+        trajectory_df = df_constructor.get_df_trajectory()
+        trajectory.generic_reports(
+            repo_manager,
+            trajectory_df,
+            self.settings,
+        )
+        trajectory_df = None  # avoid big memory usage
+        progression[0] += 1
+        self.update_progression(*progression)
+
+        # EVENTS
+        # ----------------
+        if all_event_df is not None:
+            for event_name in sorted_events:
+                event_df = df_constructor.get_df_event(event_name)
+                event.generic_reports(
+                    repo_manager,
+                    event_df,
+                    event_name,
+                    self.settings,
+                )
+                all_event_df = pd.concat([all_event_df, event_df])
+                progression[0] += 1
+                self.update_progression(*progression)
+
+        # SENSORS
+        # ----------------
+        sensors_df = df_constructor.get_df_sensors()
+        sensors.generic_reports(
+            repo_manager,
+            sensors_df,
+            self.settings,
+        )
+        progression[0] += 1
+        self.update_progression(*progression)
+
+        # OVERVIEW
+        # ----------------
+        animals_df = df_constructor.get_df_animals()
+        overview.generic_reports(
+            repo_manager,
+            animals_df,
+            activity_df,
+            all_event_df,
+            sensors_df,
+            self.settings,
+        )
+        progression[0] += 1
+        self.update_progression(*progression)
+
+        # OUTPUT
+        # ----------------
         output_folder = self.get_output_folder()
         repo_manager.generate_local_output(output_folder)
+        self.settings.save(output_folder / "settings.json")
 
-        results_df: list[pd.DataFrame | None] = [
-            activity_df,
-            # trajectory_df,
-            events_df,
-            sensors_df,
-            animal_df,
-        ]
+        # results_df: list[pd.DataFrame | None] = [
+        #     activity_df,
+        #     all_event_df,
+        #     sensors_df,
+        #     animals_df,
+        # ]
 
-        return results_df
+        # return results_df
 
     def get_output_folder(self) -> Path:
         """Get the output folder for the analysis reports. If no output folder
@@ -322,7 +300,7 @@ class LMTEYEDataAnalyzer:
 
         return output_folder
 
-    def open_analysis_output(self):
+    def open_results(self):
         """Open the generated analysis output in the default web browser."""
 
         output_folder = self.get_output_folder()
@@ -331,3 +309,18 @@ class LMTEYEDataAnalyzer:
             HTMLReportManager.open_local_output(output_folder)
         else:
             print(f"Output folder not found: {output_folder}")
+
+    def update_progression(
+        self,
+        current_progression: int,
+        max_progression: int,
+        progress_callback: Callable[[int, int], None] | None = None,
+    ):
+        """Update the progress of the analysis comparison."""
+        if progress_callback:
+            progress_callback(current_progression, max_progression)
+        else:
+            print(
+                f"Progress: {current_progression}/{max_progression} "
+                f"({(current_progression/max_progression)*100:.1f}%)"
+            )
