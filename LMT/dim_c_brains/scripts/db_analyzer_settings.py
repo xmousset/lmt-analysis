@@ -1,250 +1,330 @@
-"""
-@author: xmousset
-"""
+# """
+# @author: xmousset
+# """
 
-from typing import Any
-from pathlib import Path
+# from typing import Any
+# from pathlib import Path
 
-import pandas as pd
+# import pandas as pd
 
-from dim_c_brains.scripts.parameter_saver import ParameterSaver
+# from dim_c_brains.scripts.parameter_saver import ParameterSaver
 
-from lmtanalysis.Animal import AnimalType
-from lmtanalysis.Measure import oneMinute, oneDay
+# from lmtanalysis.Animal import AnimalType
+# from lmtanalysis.Measure import oneMinute, oneDay
 
 
-class DbAnalyzerSettings:
-    """Manage settings for LMT database analyzer.
+# class DbAnalyzerSettings:
+#     """Manage settings for LMT database analyzer.
 
-    Parameters
-    ----------
-    analysis_area : tuple of int or None, optional
-        Area to be analyzed in the format (x_min, y_min, x_max, y_max) in
-        centimeters (*cm*).
-        Defaults to None (analyze the entire area).
-    animal_type : AnimalType, optional
-        Type of animal for event processing. Defaults to AnimalType.MOUSE.
-    bin_rounding : bool, optional
-        Whether to round the time bins to the nearest hour. If False, the time
-        bins will be based on the first timestamp of the recording. Defaults to
-        True.
-    events : set of str, optional
-        Set of event names to analyze. By default, no event analysis is
-        performed (empty set).
-    filter_flickering : bool, optional
-        Whether to filter the 'Flickering' event for animal activity.
-        Defaults to False.
-    filter_stop : bool, optional
-        Whether to filter the 'Stop' event for animal activity.
-        Defaults to False.
-    fps : int, optional
-        Frame rate of the recording in *frames per second*. Defaults to 30.
-    night_begin : int, optional
-        Hour when the night begins (0-23). Defaults to 20 (8 *p.m.*).
-    night_duration : int, optional
-        Duration of the night in hours. Defaults to 12 (12 hours so from
-        8 *p.m.* to 8 *a.m.* for example).
-    output_folder : Path or str or None, optional
-        Folder to save the output reports. By default, prompts user to
-        select folder ('manual selection').
-    processing_limits : tuple of int or pd.Timestamp or None, optional
-        Start and end of the processing period. Each can be an integer frame
-        number or a timestamp string. Defaults to (None, None).
-        *(timestamp string example: "2026-01-01 00:00:00")*
-    processing_window : int, optional
-        Load a maximum of 'processing_window' *frames* simultaneously. If the
-        data is bigger than this window, the computation will be splitted into
-        chunks of 'processing_window' size. Defaults to *2 592 000 frames (=1
-        day)*.
-    rebuild_events : bool, optional
-        Whether to rebuild all the events to analyse in the database before
-        analysis. If False, only missing events will be rebuilt. Defaults to
-        False.
-    time_window : int, optional
-        Time window for data binning in *frames*. Defaults to *27 000 (= 15
-        min)*.
-    utc_offset : float, optional
-        UTC offset in hours for correct timezone conversion (e.g. +9.0 for
-        Tokyo time, +2.0 for Paris Summer time). Defaults to 0.0.
+#     Parameters
+#     ----------
+#     analysis_area : tuple of int or None, optional
+#         Area to be analyzed in the format (x_min, y_min, x_max, y_max) in
+#         centimeters (*cm*).
+#         Defaults to None (analyze the entire area).
+#     animal_type : AnimalType, optional
+#         Type of animal for event processing. Defaults to AnimalType.MOUSE.
+#     bin_rounding : bool, optional
+#         Whether to round the time bins to the nearest hour. If False, the time
+#         bins will be based on the first timestamp of the recording. Defaults to
+#         True.
+#     database_path : Path or None, optional
+#         Path to the database to analyze. If None, no analysis can be done.
+#         Defaults to None.
+#     events : set of str, optional
+#         Set of event names to analyze. By default, no event analysis is
+#         performed (empty set).
+#     filter_flickering : bool, optional
+#         Whether to filter the 'Flickering' event for animal activity.
+#         Defaults to False.
+#     filter_stop : bool, optional
+#         Whether to filter the 'Stop' event for animal activity.
+#         Defaults to False.
+#     first_value_in_graph : bool, optional
+#         Whether to include the first value of the data in the graphs. If False,
+#         the first value will be excluded from the graphs. Defaults to True.
+#     fps : int, optional
+#         Frame rate of the recording in *frames per second*. Defaults to 30.
+#     night_begin : int, optional
+#         Hour when the night begins (0-23). Defaults to 20 (8 *p.m.*).
+#     night_duration : int, optional
+#         Duration of the night in hours. Defaults to 12 (12 hours so from
+#         8 *p.m.* to 8 *a.m.* for example).
+#     output_folder : Path or str or None, optional
+#         Folder to save the output reports. By default, prompts user to
+#         select folder ('manual selection').
+#     processing_limits : tuple of int or pd.Timestamp or None, optional
+#         Start and end of the processing period. Each can be an integer frame
+#         number or a timestamp string. Defaults to (None, None).
+#         *(timestamp string example: "2026-01-01 00:00:00")*
+#     processing_window : int, optional
+#         Load a maximum of 'processing_window' *frames* simultaneously. If the
+#         data is bigger than this window, the computation will be splitted into
+#         chunks of 'processing_window' size. Defaults to *2 592 000 frames (=1
+#         day)*.
+#     rebuild_events : bool, optional
+#         Whether to rebuild all the events to analyse in the database before
+#         analysis. If False, only missing events will be rebuilt. Defaults to
+#         False.
+#     time_window : int, optional
+#         Time window for data binning in *frames*. Defaults to *27 000 (= 15
+#         min)*.
+#     utc_offset : float, optional
+#         UTC offset in hours for correct timezone conversion (e.g. +9.0 for
+#         Tokyo time, +2.0 for Paris Summer time). Defaults to 0.0.
+#     report_x_axis : str, optional
+#         Column name to use for x-axis in graphs reports. Defaults to
+#         "START_TIME".
+#     report_color : str, optional
+#         Column name to use for color differentiation (legend) in graphs
+#         reports. Defaults to "RFID".
 
-    To add another parameter, simply add it in both the `get_default_settings`
-    and the `reset` methods of the class, all other methods will automatically
-    handle it.
-    If the parameter is not of type int, float, bool, None or str, (or list
-    with these sub-types) you will need to add the conversion of the parameter
-    in the `convert_in_str` and `convert_from_str` methods for saving and
-    loading the settings in a JSON file.
-    """
+#     To add another parameter, simply add it in both the `get_default_settings`
+#     and the `reset` methods of the class, all other methods will automatically
+#     handle it.
+#     If the parameter is not of type int, float, bool, None or str, (or list
+#     with these sub-types) you will need to add the conversion of the parameter
+#     in the `convert_in_str` and `convert_from_str` methods for saving and
+#     loading the settings in a JSON file.
+#     """
 
-    @staticmethod
-    def get_default_settings() -> dict[str, Any]:
-        """Get the default settings values as a dictionary."""
-        default_settings = {
-            "analysis_area": None,
-            "animal_type": AnimalType.MOUSE,
-            "bin_rounding": True,
-            "events": set(),
-            "filter_flickering": True,
-            "filter_stop": True,
-            "fps": 30,
-            "night_begin": 20,
-            "night_duration": 12,
-            "output_folder": None,
-            "processing_limits": (None, None),
-            "processing_window": oneDay,
-            "rebuild_events": False,
-            "time_window": 15 * oneMinute,
-            "utc_offset": 0.0,
-        }
-        return default_settings
+#     @staticmethod
+#     def get_default_settings() -> dict[str, Any]:
+#         """Get the default settings values as a dictionary."""
+#         default_settings = {
+#             "analysis_area": None,
+#             "animal_type": AnimalType.MOUSE,
+#             "bin_rounding": True,
+#             "database_path": None,
+#             "events": set(),
+#             "filter_flickering": True,
+#             "filter_stop": True,
+#             "fps": 30,
+#             "report_color": "RFID",
+#             "report_x_axis": "START_TIME",
+#             "night_begin": 20,
+#             "night_duration": 12,
+#             "output_folder": None,
+#             "processing_limits": (None, None),
+#             "processing_window": oneDay,
+#             "rebuild_events": False,
+#             "time_window": 15 * oneMinute,
+#             "utc_offset": 0.0,
+#         }
+#         return default_settings
 
-    @classmethod
-    def get_all_keys(cls):
-        """Get all settings names."""
-        return [key for key in cls.get_default_settings()]
+#     @classmethod
+#     def get_all_keys(cls):
+#         """Get all settings names."""
+#         return [key for key in cls.get_default_settings()]
 
-    @staticmethod
-    def convert_in_str(initial_dict: dict[str, Any]) -> dict[str, Any]:
-        """Convert the settings values in string for better readability."""
-        new_dict = initial_dict.copy()
+#     @staticmethod
+#     def convert_in_str(initial_dict: dict[str, Any]) -> dict[str, Any]:
+#         """Convert the dict settings values in string."""
+#         new_dict = initial_dict.copy()
 
-        new_dict["animal_type"] = new_dict["animal_type"].name
+#         new_dict["animal_type"] = new_dict["animal_type"].name
 
-        if new_dict["output_folder"] is not None:
-            new_dict["output_folder"] = str(new_dict["output_folder"])
+#         if new_dict["output_folder"] is not None:
+#             new_dict["output_folder"] = str(new_dict["output_folder"])
 
-        if isinstance(new_dict["events"], set):
-            new_dict["events"] = list(new_dict["events"])
+#         if isinstance(new_dict["events"], set):
+#             new_dict["events"] = list(new_dict["events"])
 
-        new_dict["processing_limits"] = tuple(
-            (
-                ts.isoformat(sep=" ", timespec="seconds")
-                if ts is not None
-                else None
-            )
-            for ts in initial_dict["processing_limits"]
-        )
+#         new_dict["processing_limits"] = tuple(
+#             (
+#                 ts.isoformat(sep=" ", timespec="seconds")
+#                 if ts is not None
+#                 else None
+#             )
+#             for ts in initial_dict["processing_limits"]
+#         )
 
-        return new_dict
+#         return new_dict
 
-    @staticmethod
-    def convert_from_str(initial_dict: dict[str, Any]) -> dict[str, Any]:
-        """Convert the settings values from string to their original type."""
-        new_dict = initial_dict.copy()
+#     @staticmethod
+#     def convert_from_str(initial_dict: dict[str, Any]) -> dict[str, Any]:
+#         """Convert the dict settings values from string to the correct type."""
+#         new_dict = initial_dict.copy()
 
-        new_dict["animal_type"] = AnimalType[new_dict["animal_type"]]
+#         new_dict["animal_type"] = AnimalType[new_dict["animal_type"]]
 
-        if new_dict["output_folder"] is not None:
-            new_dict["output_folder"] = Path(new_dict["output_folder"])
+#         if new_dict["output_folder"] is not None:
+#             new_dict["output_folder"] = Path(new_dict["output_folder"])
 
-        if new_dict["events"] == [None]:
-            new_dict["events"] = set()
-        elif isinstance(new_dict["events"], list):
-            new_dict["events"] = set(new_dict["events"])
+#         if new_dict["events"] == [None]:
+#             new_dict["events"] = set()
+#         elif isinstance(new_dict["events"], list):
+#             new_dict["events"] = set(new_dict["events"])
 
-        new_dict["processing_limits"] = tuple(
-            pd.Timestamp(ts) if ts is not None else None
-            for ts in initial_dict["processing_limits"]
-        )
+#         new_dict["processing_limits"] = tuple(
+#             pd.Timestamp(ts) if ts is not None else None
+#             for ts in initial_dict["processing_limits"]
+#         )
 
-        return new_dict
+#         return new_dict
 
-    def __init__(self, **kwargs):
-        """Initialize the settings with default or specified values."""
-        self.reset()
-        self.update_from_dict(kwargs)
-        self._saver = ParameterSaver()
+#     def __init__(self):
+#         """Initialize the settings with default values."""
+#         self.reset()
+#         self._saver = ParameterSaver()
 
-    def reset(self):
-        """Reset the settings to their initial values."""
+#     def reset(self):
+#         """Reset the settings to their initial values."""
 
-        default_settings = DbAnalyzerSettings.get_default_settings()
+#         default_settings = DbAnalyzerSettings.get_default_settings()
 
-        self.analysis_area: tuple[int, int, int, int] | None = (
-            default_settings["analysis_area"]
-        )
-        self.animal_type: AnimalType = default_settings["animal_type"]
-        self.bin_rounding: bool = default_settings["bin_rounding"]
-        self.events: set[str] = default_settings["events"]
-        self.filter_flickering: bool = default_settings["filter_flickering"]
-        self.filter_stop: bool = default_settings["filter_stop"]
-        self.fps: int = default_settings["fps"]
-        self.night_begin: int = default_settings["night_begin"]
-        self.night_duration: int = default_settings["night_duration"]
-        self.output_folder: Path | None = default_settings["output_folder"]
-        self.processing_window: int = default_settings["processing_window"]
-        self.processing_limits: tuple[
-            int | pd.Timestamp | None, int | pd.Timestamp | None
-        ] = default_settings["processing_limits"]
-        self.rebuild_events: bool = default_settings["rebuild_events"]
-        self.time_window: int = default_settings["time_window"]
-        self.utc_offset: float = default_settings["utc_offset"]
+#         self.analysis_area: tuple[int, int, int, int] | None = (
+#             default_settings["analysis_area"]
+#         )
+#         self.animal_type: AnimalType = default_settings["animal_type"]
+#         self.bin_rounding: bool = default_settings["bin_rounding"]
+#         self.database_path: Path | None = default_settings["database_path"]
+#         self.events: set[str] = default_settings["events"]
+#         self.filter_flickering: bool = default_settings["filter_flickering"]
+#         self.filter_stop: bool = default_settings["filter_stop"]
+#         self.fps: int = default_settings["fps"]
+#         self.report_color: str = default_settings["report_color"]
+#         self.report_x_axis: str = default_settings["report_x_axis"]
+#         self.night_begin: int = default_settings["night_begin"]
+#         self.night_duration: int = default_settings["night_duration"]
+#         self.output_folder: Path | None = default_settings["output_folder"]
+#         self.processing_window: int = default_settings["processing_window"]
+#         self.processing_limits: tuple[
+#             int | pd.Timestamp | None, int | pd.Timestamp | None
+#         ] = default_settings["processing_limits"]
+#         self.rebuild_events: bool = default_settings["rebuild_events"]
+#         self.time_window: int = default_settings["time_window"]
+#         self.utc_offset: float = default_settings["utc_offset"]
 
-    def logic_update(self):
-        """Update the settings values based on the current settings. Useful,
-        for example, to add events if filters are activated."""
-        # need to filter flickering
-        if self.filter_flickering:
-            self.events.add("Flickering")
+#     def logic_update(self):
+#         """Update the settings values based on the current settings. Useful,
+#         for example, to add events if filters are activated."""
+#         # need to filter flickering
+#         if self.filter_flickering:
+#             self.events.add("Flickering")
 
-        # always needed for activity analysis
-        self.events.add("Stop")
-        self.events.add("Stop in contact")
-        self.events.add("Stop isolated")
-        self.events.add("Move isolated")
-        self.events.add("Move in contact")
+#         # always needed for activity analysis
+#         self.events.add("Stop")
+#         self.events.add("Stop in contact")
+#         self.events.add("Stop isolated")
+#         self.events.add("Move isolated")
+#         self.events.add("Move in contact")
 
-        # if processing_limits is defined, force inclusion of first value
-        if self.processing_limits[0] is not None:
-            self.first_value_in_graph: bool = True
+#         # if processing_limits is defined, force inclusion of first value
+#         if self.processing_limits[0] is not None:
+#             self.first_value_in_graph: bool = True
 
-    def get_as_dict(self) -> dict[str, Any]:
-        """Get the settings as a dictionary."""
-        settings = {}
-        for key in DbAnalyzerSettings.get_all_keys():
-            settings[key] = getattr(self, key)
-        return settings
+#     def as_dict(self) -> dict[str, Any]:
+#         """Get the settings as a dictionary."""
+#         settings = {}
+#         for key in DbAnalyzerSettings.get_all_keys():
+#             settings[key] = getattr(self, key)
+#         return settings
 
-    def get_as_str_dict(self):
-        """Get the settings as a dictionary without class or object values
-        (only int, float, bool, None and str). Useful for saving the settings in a JSON
-        file."""
-        return DbAnalyzerSettings.convert_in_str(self.get_as_dict())
+#     def as_str_dict(self):
+#         """Get the settings as a dictionary without class or object values
+#         (only int, float, bool, None and str). Useful for saving the settings
+#         in a JSON file."""
+#         return DbAnalyzerSettings.convert_in_str(self.as_dict())
 
-    def update_from_dict(self, settings_dict: dict[str, Any]):
-        """Update the settings from a dictionary."""
-        update_dict = self.get_as_dict()
-        update_dict.update(settings_dict)
+#     def update_from_dict(self, settings_dict: dict[str, Any]):
+#         """Update the settings from a dictionary."""
+#         update_dict = self.as_dict()
+#         update_dict.update(settings_dict)
 
-        for key in DbAnalyzerSettings.get_all_keys():
-            setattr(self, key, update_dict[key])
+#         for key in DbAnalyzerSettings.get_all_keys():
+#             setattr(self, key, update_dict[key])
 
-    def save(self, file_path: Path):
-        """Save the settings to a JSON file."""
+#     def save(self, file_path: Path):
+#         """Save the settings to a JSON file."""
 
-        if self._saver is None:
-            raise ValueError(
-                "No saver defined for LMT-EYE settings. Cannot save settings."
-            )
+#         if self._saver is None:
+#             raise ValueError(
+#                 "No saver defined for LMT-EYE settings. Cannot save settings."
+#             )
 
-        settings = self.get_as_str_dict()
+#         settings = self.as_str_dict()
 
-        self._saver.reset()
-        self._saver.set_values(settings)
-        if file_path:
-            self._saver.save(file_path)
-        else:
-            print("No file selected.")
+#         self._saver.reset()
+#         self._saver.set_values(settings)
+#         if file_path:
+#             self._saver.save(file_path)
+#         else:
+#             print("No file selected.")
 
-    def load(self, file_path: Path):
-        """Load the settings from a JSON file."""
+#     def load(self, file_path: Path):
+#         """Load the settings from a JSON file."""
 
-        if self._saver is None:
-            raise ValueError(
-                "No saver defined for LMT-EYE settings. Cannot load settings."
-            )
-        self.reset()
-        self._saver.load(file_path)
-        settings = self._saver.get_parameters()
-        settings = DbAnalyzerSettings.convert_from_str(settings)
-        self.update_from_dict(settings)
+#         if self._saver is None:
+#             raise ValueError(
+#                 "No saver defined for LMT-EYE settings. Cannot load settings."
+#             )
+#         self.reset()
+#         self._saver.load(file_path)
+#         settings = self._saver.get_parameters()
+#         settings = DbAnalyzerSettings.convert_from_str(settings)
+#         self.update_from_dict(settings)
+
+#     def as_html(self):
+#         """Get the current settings as an HTML table."""
+#         settings_str = self.as_str_dict()
+#         settings = self.as_dict()
+#         html = "<table border='1' cellpadding='4' cellspacing='0'>"
+#         html += "<tr>"
+#         html += "<th>Name</th>"
+#         html += "<th>Type</th>"
+#         html += "<th>JSON value</th>"
+#         html += "</tr>"
+#         for key in settings_str.keys():
+#             str_value = settings_str[key]
+#             type_value = type(settings[key]).__name__
+#             html += "<tr>"
+#             html += f"<td>{key}</td>"
+#             html += f"<td>{type_value}</td>"
+#             html += f"<td>{str_value}</td>"
+#             html += "</tr>"
+#         html += "</table>"
+#         return html
+
+#     def get_plot_parameters(self, df: pd.DataFrame) -> dict[str, Any]:
+#         """Get the column name for *"color"* that are always used for the
+#         reports plots.
+#         Additionally, the unique values of the color column are sorted and
+#         added in the "category_orders" parameter for better consistency of the
+#         legends in the plots.
+
+#         **Generic example**: *{"color": "RFID", "category_orders": {"RFID":
+#         ["001", "002", "003"]}}*
+#         """
+
+#         if self.report_color not in df.columns:
+#             raise ValueError(
+#                 f"report_color '{self.report_color}' not found in dataframe."
+#             )
+
+#         plot_param = {
+#             "color": self.report_color,
+#             "category_orders": {
+#                 self.report_color: sorted(df[self.report_color].unique())
+#             },
+#         }
+
+#         return plot_param
+
+#     def get_xlsx_parameters(self, df: pd.DataFrame) -> list[str]:
+#         """Get the column names that are always used for the xlsx export.
+
+#         **Generic example**: *["RFID", "START_TIME"]*
+#         """
+
+#         if self.report_color not in df.columns:
+#             raise ValueError(
+#                 f"report_color '{self.report_color}' not found in dataframe."
+#             )
+
+#         xlsx_param = ["RFID", self.report_x_axis]
+#         if self.report_color != "RFID":
+#             xlsx_param.append(self.report_color)
+
+#         return xlsx_param
