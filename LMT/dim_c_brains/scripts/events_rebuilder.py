@@ -158,16 +158,12 @@ class EventsRebuilder:
         print("Caching load of animal detection done.")
 
         nb_modules = len(modules)
-        current_progression = nb_modules * window_progress[0]
-        max_progression = nb_modules * window_progress[1]
-
-        if progress_callback:
-            progress_callback(current_progression, max_progression)
-        else:
-            print(
-                f"Progress: {current_progression}/{max_progression} "
-                f"({(current_progression/max_progression)*100:.1f}%)"
-            )
+        progression = [
+            nb_modules * window_progress[0],
+            nb_modules * window_progress[1],
+            progress_callback,
+        ]
+        self.update_progression(*progression)
 
         for i, build_event_module in enumerate(modules):
 
@@ -182,14 +178,8 @@ class EventsRebuilder:
             )
             event_chrono.printTimeInS()
 
-            current_progression = i + 1 + nb_modules * window_progress[0]
-            if progress_callback:
-                progress_callback(current_progression, max_progression)
-            else:
-                print(
-                    f"Progress: {current_progression}/{max_progression} "
-                    f"({(current_progression/max_progression)*100:.1f}%)"
-                )
+            progression[0] = i + 1 + nb_modules * window_progress[0]
+            self.update_progression(*progression)
 
     def rebuild(
         self,
@@ -205,8 +195,7 @@ class EventsRebuilder:
         """
         if not events:
             print("No events to rebuild.")
-            if progress_callback:
-                progress_callback(1, 1)
+            self.update_progression(1, 1, progress_callback)
             return
 
         modules = get_modules(events)
@@ -254,4 +243,20 @@ class EventsRebuilder:
             print(error, file=sys.stderr)
             raise Exception()
 
+        self.update_progression(1, 1, progress_callback)
         print("\n*** REBUILD FINISHED ***\n")
+
+    @staticmethod
+    def update_progression(
+        current_progression: int,
+        max_progression: int,
+        progress_callback: Callable[[int, int], None] | None = None,
+    ):
+        """Update the progression of the rebuilding process."""
+        if progress_callback:
+            progress_callback(current_progression, max_progression)
+        else:
+            print(
+                f"Progress: {current_progression}/{max_progression} "
+                f"({(current_progression/max_progression)*100:.1f}%)"
+            )

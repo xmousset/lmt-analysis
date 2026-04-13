@@ -64,7 +64,7 @@ class HTMLReportManager:
     def add_report(
         self,
         name: str,
-        html_figure: go.Figure | str | None = None,
+        html_or_figure: go.Figure | str | None = None,
         top_note: str | None = None,
         graph_datas: pd.DataFrame | None = None,
     ):
@@ -77,7 +77,7 @@ class HTMLReportManager:
 
         Args:
             name (str): The name of the report.
-            html_figure (go.Figure | str | None): A Plotly figure or HTML
+            html_or_figure (go.Figure | str | None): A Plotly figure or HTML
                 string to include in the report. If None, no figure is added.
             top_note (str | None): An optional note to include above the
                 figure.
@@ -89,11 +89,11 @@ class HTMLReportManager:
         if top_note is not None:
             html += top_note + "<hr>"
 
-        if html_figure is not None:
-            if isinstance(html_figure, go.Figure):
-                html += html_figure.to_html(**self.html_param)
+        if html_or_figure is not None:
+            if isinstance(html_or_figure, go.Figure):
+                html += html_or_figure.to_html(**self.html_param)
             else:
-                html += html_figure
+                html += html_or_figure
 
         report = Report(name, html, experimentName=self.exp_name)
 
@@ -120,7 +120,7 @@ class HTMLReportManager:
             The name of the report.
         figures : list[go.Figure | str]
             A list of Plotly figures or HTML strings to include in the report.
-        note : str | None
+        top_note : str | None
             An optional note to include above the figures.
         max_fig_in_row : int | None
             Maximum number of figures to display in each row. If None, all

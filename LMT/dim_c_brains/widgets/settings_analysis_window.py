@@ -21,9 +21,8 @@ from PyQt6.QtWidgets import (
 )
 
 from dim_c_brains.scripts.events_and_modules import ALL_EVENTS
-from dim_c_brains.scripts.db_analyzer_settings import (
-    DbAnalyzerSettings,
-)
+from dim_c_brains.scripts.settings import AnalysisSettings
+
 from dim_c_brains.widgets.pyqt6_tools import get_btn_style
 from dim_c_brains.widgets.area_selection import AreaSelectionWindow
 from dim_c_brains.widgets.event_selection import EventSelectionWindow
@@ -31,7 +30,7 @@ from dim_c_brains.widgets.event_selection import EventSelectionWindow
 from lmtanalysis.Animal import AnimalType
 
 
-class DbAnalyzerSettingsWindow(QDialog):
+class AnalysisSettingsWindow(QDialog):
     """Dialog to edit LMT database analyzer settings."""
 
     SAVING_PATH = Path.home() / "documents" / "LMT-EYE_settings"
@@ -41,10 +40,10 @@ class DbAnalyzerSettingsWindow(QDialog):
     def load_default_settings():
         """Load default settings if available."""
 
-        settings = DbAnalyzerSettings()
+        settings = AnalysisSettings()
 
         default_path = (
-            DbAnalyzerSettingsWindow.SAVING_PATH / "default_settings.json"
+            AnalysisSettingsWindow.SAVING_PATH / "default_settings.json"
         )
 
         if default_path.is_file():
@@ -57,7 +56,7 @@ class DbAnalyzerSettingsWindow(QDialog):
     def __init__(self, parent: QWidget | None):
         """Initialize the settings window by loading default settings."""
         super().__init__(parent)
-        self.setWindowTitle("LMT-EYE - Settings")
+        self.setWindowTitle("LMT-EYE - Analysis Settings")
 
         self.settings = self.load_default_settings()
         self._init_ui()
@@ -558,7 +557,7 @@ class DbAnalyzerSettingsWindow(QDialog):
 
     def _update_ui_from_settings(self):
         """Update UI elements based on LMT-EYE settings."""
-        settings = self.settings.get_as_str_dict()
+        settings = self.settings.as_str_dict()
 
         self.start_edit.setText(settings["processing_limits"][0])
         self.end_edit.setText(settings["processing_limits"][1])
@@ -798,7 +797,7 @@ class DbAnalyzerSettingsWindow(QDialog):
         save_str, _ = QFileDialog.getSaveFileName(
             self,
             "Select Settings File",
-            str(DbAnalyzerSettingsWindow.SAVING_PATH),
+            str(AnalysisSettingsWindow.SAVING_PATH),
             "JSON Files (*.json)",
         )
         save_path = Path(save_str) if save_str else None
@@ -813,7 +812,7 @@ class DbAnalyzerSettingsWindow(QDialog):
         load_str, _ = QFileDialog.getOpenFileName(
             self,
             "Select Settings File",
-            str(DbAnalyzerSettingsWindow.SAVING_PATH),
+            str(AnalysisSettingsWindow.SAVING_PATH),
             "JSON Files (*.json)",
         )
         load_path = Path(load_str) if load_str else None
@@ -827,7 +826,7 @@ class DbAnalyzerSettingsWindow(QDialog):
         """Save current settings as the default settings
         (default_settings.json in the same directory)."""
         save_path = (
-            DbAnalyzerSettingsWindow.SAVING_PATH / "default_settings.json"
+            AnalysisSettingsWindow.SAVING_PATH / "default_settings.json"
         )
         self._update_settings_from_ui()
         self.settings.save(save_path)

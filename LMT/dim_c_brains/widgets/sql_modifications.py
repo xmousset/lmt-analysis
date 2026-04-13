@@ -55,7 +55,7 @@ class UpdateDatabaseInfo(QDialog):
     def __init__(self, parent: QWidget | None, database_path: Path):
         """Initialize the dialog and load database information."""
         super().__init__(parent)
-        self.setWindowTitle("LMT-EYE - Animals Table")
+        self.setWindowTitle("LMT-EYE - Analysis Settings - Animals Table")
 
         self.database_path = database_path
         self.df = self.get_db_df()
@@ -371,7 +371,7 @@ class SQLTypeDialog(QDialog):
     def __init__(self, parent: QWidget | None):
         """Initialize the type selection dialog."""
         super().__init__(parent)
-        self.setWindowTitle("Select Column Type")
+        self.setWindowTitle("LMT-EYE - Analysis Settings - Select Column Type")
         layout = QVBoxLayout()
         self.combo = QComboBox()
         self.combo.addItems(self.INFOS.keys())

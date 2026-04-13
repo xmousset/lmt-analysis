@@ -7,37 +7,21 @@ from typing import List
 import pandas as pd
 
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
-from dim_c_brains.scripts.df_constructor import DataframeConstructor
-from dim_c_brains.scripts.plotting_functions import (
-    str_h_min,
-    draw_nights,
-    line_with_shade,
-)
-
-from lmtanalysis.Measure import oneMinute, oneHour, oneDay
+from dim_c_brains.scripts.settings import AnalysisSettings, ComparisonSettings
+from dim_c_brains.scripts.plotting_functions import str_h_min
 
 
 def generic_reports(
     report_manager: HTMLReportManager,
     df_animals: pd.DataFrame | None,
     df_activity: pd.DataFrame | None,
-    df_events: pd.DataFrame | None = None,
-    df_sensors: pd.DataFrame | None = None,
-    **kwargs,
+    df_events: pd.DataFrame | None,
+    df_sensors: pd.DataFrame | None,
+    settings: AnalysisSettings | ComparisonSettings,
 ):
     """This function uses the provided report manager to create a structured
     summary of the experiment, including cards for experiment details, animal
-    activity, analyzed events, and sensor readings.
-
-    kwargs:
-    - database_path (Path): Path to the dataset.
-    - filter_flickering (bool): Whether to filter flickering activity.
-    - filter_stop (bool): Whether to filter stop activity.
-    - night_begin (int): The hour when the night begins.
-    - night_duration (int): The duration of the night in hours.
-    - overview_event_list (List[str] | None): List of events used for overview
-        cards.
-    """
+    activity, analyzed events, and sensor readings."""
 
     report_manager.reports_creation_focus("main")
     if df_animals is None or df_activity is None:
@@ -52,17 +36,32 @@ def generic_reports(
     #######################################
 
     NB_ANIMALS = df_animals["RFID"].nunique()
-
     EXP_DURATION = (
-        df_activity["END_FRAME"].max() - df_activity["START_FRAME"].min()
-    ) / kwargs.get("fps", 30)
+        df_activity["END_TIME"].max() - df_activity["START_TIME"].min()
+    ).total_seconds()
     NB_DAYS = EXP_DURATION / 3600 / 24
 
-    EXP_NAME = kwargs.get("database_path", None)
-    if EXP_NAME is not None:
-        EXP_NAME = EXP_NAME.stem
+    if isinstance(settings, AnalysisSettings):
+        if settings.database_path is None:
+            EXP_NAME = "Unknown experiment"
+        else:
+            EXP_NAME = settings.database_path.stem
+        title_msg = f"""
+        This is a summary of the <i>{EXP_NAME}</i> dataset
+        analysis. As a reminder, if you want to compare this analysis
+        with another one, it is better if they have the same binning
+        size.
+        """
     else:
-        EXP_NAME = "Unknown experiment"
+        EXP_NAME = (
+            "Comparison of analyses\nComparator: " + settings.report_color
+        )
+        title_msg = f"""
+        This is a summary of the comparison between analyses. The
+        comparator used for this comparison is 
+        <strong>{settings.report_color}</strong>. All analyses included in this
+        comparison are listed in the settings table at the end of this report.
+        """
 
     #######################################
     #   Titles   #
@@ -73,10 +72,7 @@ def generic_reports(
         content=f"""
         <div style="width:80%; margin: 0 auto; text-align: center;">
             <div style="margin-bottom:1em;">
-                This is a summary of the <i>{EXP_NAME}</i> dataset
-                analysis. As a reminder, if you want to compare this analysis
-                with another one, you must ensure they have the same binning
-                size.
+                {title_msg}
                 <hr>
             </div>
         </div>
@@ -102,65 +98,77 @@ def generic_reports(
     #   Experiment card   #
     #######################################
 
-    t_format = "%Y %B - %A %d - %H:%M"
+    card = f"""
+        <div style="flex: 0 0 320px; min-width: 220px; max-width: 400px;">
+            <div style="margin:0; padding:0;">
+                <p style="margin: 0.5em 0;">Include <strong>
+                {NB_ANIMALS} animals
+                </strong></p>
+                <p style="margin: 0.5em 0;">Run during <strong>
+                {NB_DAYS:1.1f} days
+                </strong> and <strong>
+                {EXP_DURATION // 3600} hours
+                </strong> and <strong>
+                {(EXP_DURATION // 60) % 60} minutes
+                </strong></p>
+        """
+    if isinstance(settings, AnalysisSettings):
+        card += f"""
+                <p style="margin: 0.5em 0;">Binned every <strong>
+                {settings.time_window / settings.fps / 60} minutes
+                </strong></p>
+                <p style="margin: 0.5em 0;">
+                {df_activity["START_TIME"].min()} - start
+                </p>
+                <p style="margin: 0.5em 0;">
+                {df_activity["END_TIME"].max()} - end
+                </p>
+            """
+    card += """
+            </div>
+        </div>
+    """
+
     report_manager.add_card(
         name=f"Experiment informations",
-        content=f"""
-        <div style="flex: 0 0 320px; min-width: 220px; max-width: 400px;">
-                <div style="margin:0; padding:0;">
-                    <p style="margin: 0.5em 0;">Include <strong>
-                    {NB_ANIMALS} animals
-                    </strong></p>
-                    <p style="margin: 0.5em 0;">Run during <strong>
-                    {NB_DAYS:1.1f} days
-                    </strong> and <strong>
-                    {EXP_DURATION // 3600} hours
-                    </strong> and <strong>
-                    {(EXP_DURATION // 60) % 60} minutes
-                    </strong></p>
-                    <p style="margin: 0.5em 0;">Binned every <strong>
-                    {kwargs.get("time_window", 15 * oneMinute)
-                    / kwargs.get("fps", 30) / 60} minutes
-                    </strong></p>
-                    <p style="margin: 0.5em 0;">
-                    {df_activity["START_TIME"].min()} - start
-                    </p>
-                    <p style="margin: 0.5em 0;">
-                    {df_activity["END_TIME"].max()} - end
-                    </p>
-                </div>
-            </div>
-        """,
+        content=card,
     )
 
     #######################################
     #   Activity card   #
     #######################################
-    if df_activity is not None:
+    if isinstance(settings, AnalysisSettings):
+        if df_activity is not None:
 
-        card = get_activity_card(df_activity, NB_ANIMALS, NB_DAYS, **kwargs)
+            card = get_activity_card(
+                df_activity,
+                NB_ANIMALS,
+                NB_DAYS,
+                settings,
+            )
 
-        report_manager.add_card(
-            name="Animal Average Activity",
-            content=card,
-        )
-    else:
-        report_manager.add_card(
-            name="Animal Average Activity",
-            content="<p>No activity analysed.</p>",
-        )
+            report_manager.add_card(
+                name="Animal Average Activity",
+                content=card,
+            )
+        else:
+            report_manager.add_card(
+                name="Animal Average Activity",
+                content="<p>No activity analysed.</p>",
+            )
 
     #######################################
     #   Events card   #
     #######################################
     if df_events is not None:
 
-        overview_event_list = kwargs.get(
-            "overview_event_list", df_events["EVENT"].unique().tolist()
-        )
+        overview_event_list = df_events["EVENT"].unique().tolist()
 
         card = get_event_card(
-            df_events, overview_event_list, NB_ANIMALS, NB_DAYS
+            df_events,
+            overview_event_list,
+            NB_ANIMALS,
+            NB_DAYS,
         )
 
         report_manager.add_card(
@@ -185,26 +193,44 @@ def generic_reports(
             content=card,
         )
     else:
-        report_manager.add_card(
-            name="Average Sensors",
-            content="<p>No sensor data available.</p>",
-        )
+        if isinstance(settings, AnalysisSettings):
+            report_manager.add_card(
+                name="Average Sensors",
+                content="<p>No sensor data available.</p>",
+            )
+        else:
+            msg = """
+            Calculated time bin depends on the experiment analysis. As an 
+            information, we show here the analysis binning chose for each animal:
+            """
+            for rfid in sorted(df_activity["RFID"].unique()):
+                time_window = (
+                    df_activity[df_activity["RFID"] == rfid]["START_TIME"]
+                    .diff()
+                    .max()
+                )
+                time_window_min = round(time_window.total_seconds() / 60)
+                msg += f"<br> - {rfid}: {time_window_min} min"
+            report_manager.add_card(
+                name="Time interval (bin) for each animal",
+                content=msg,
+            )
 
     #######################################
     #   SETTINGS   #
     #######################################
-    msg = """
-    Here are all the settings used for this analysis. They can be useful to
-    keep track of the settings used for each analysis and to ensure that
-    comparisons are made with analyses using the same settings.
+    overview_type = (
+        "analysis" if isinstance(settings, AnalysisSettings) else "comparison"
+    )
+    msg = f"""
+    Here are all the settings used for this {overview_type}. They can be useful
+    to keep track of the settings used for reproducible results and debugging.
     """
 
-    html = ""
-    for key, value in kwargs.items():
-        html += f"<b>{key}</b>: {value}<br>"
-
     report_manager.add_report(
-        name="complete table", html_or_figure=html, top_note=msg
+        name="complete table",
+        html_or_figure=settings.as_html(),
+        top_note=msg,
     )
 
     #######################################
@@ -214,15 +240,18 @@ def generic_reports(
 
 
 def get_activity_card(
-    df: pd.DataFrame, NB_ANIMALS: int, NB_DAYS: float, **kwargs
+    df: pd.DataFrame,
+    NB_ANIMALS: int,
+    NB_DAYS: float,
+    settings: AnalysisSettings,
 ):
     card = """<div style="flex: 0 0 320px; min-width: 220px;
     max-width: 400px;"> <div style="margin:0; padding:0;">
     """
     filters = []
-    if kwargs.get("filter_flickering", False):
+    if settings.filter_flickering:
         filters.append("Flickering")
-    if kwargs.get("filter_stop", False):
+    if settings.filter_stop:
         filters.append("Stop")
     filters_str = ", ".join(filters) if filters else "no filters applied"
     card += f"""

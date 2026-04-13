@@ -132,7 +132,7 @@ class AreaSelectionWindow(QDialog):
         super().__init__(parent)
         self.selected_area = area
         """(x_min, y_min, x_max, y_max) in *cm*. If None, analyze all data."""
-        self.setWindowTitle("Select Analysis Area")
+        self.setWindowTitle("LMT-EYE - Analysis Settings - Area Selection")
         self.setFixedSize(500, 400)
         self._init_ui()
 

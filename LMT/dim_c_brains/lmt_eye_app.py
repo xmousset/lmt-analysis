@@ -12,7 +12,7 @@ from pathlib import Path
 # pyinstaller -p LMT --onefile --icon=LMT/dim_c_brains/res/lmt_eye_icon.png --add-data "LMT/dim_c_brains/res/lmt_eye_icon.png;dim_c_brains/res" --add-data "LMT/dim_c_brains/res/template;dim_c_brains/res/template" --add-data "LMT/dim_c_brains/res/assets;dim_c_brains/res/assets" --add-data "LMT/dim_c_brains/res/mouse_run.gif;dim_c_brains/res" LMT/dim_c_brains/lmt_eye_app.py
 
 APP_VERSION = "1.4"
-APP_RELEASE = "2026-04-08"
+APP_RELEASE = "2026-04-13"
 
 if hasattr(sys, "_MEIPASS"):
     # in app
@@ -47,6 +47,7 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QFormLayout,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QMainWindow,
     QMessageBox,
@@ -57,12 +58,19 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from LMT.dim_c_brains.scripts.db_analyzer import DatabaseAnalyzer
+from dim_c_brains.scripts.db_analyzer import DatabaseAnalyzer
+from dim_c_brains.scripts.analyses_comparator import AnalysesComparator
+
+from dim_c_brains.scripts.settings import ComparisonSettings
+from dim_c_brains.widgets.settings_analysis_window import (
+    AnalysisSettingsWindow,
+)
+from dim_c_brains.widgets.settings_comparison_window import (
+    ComparisonSettingsWindow,
+)
+
 from dim_c_brains.widgets.pyqt6_tools import YesNoQuestion, get_btn_style
 from dim_c_brains.widgets.sql_modifications import UpdateDatabaseInfo
-from dim_c_brains.widgets.db_analyzer_settings_selection import (
-    DbAnalyzerSettingsWindow,
-)
 
 
 class LMTEYEApp(QMainWindow):
@@ -76,28 +84,23 @@ class LMTEYEApp(QMainWindow):
         self._init_ui()
 
     def _init_ui(self):
-        self.database_analysis = DatabaseAnalysisWindow()
-        # self.compare_analysis = CompareWidget()
+        self.database_analysis = DatabaseAnalysisWidget()
+        self.compare_analysis = AnalysesComparisonWidget()
 
         self.stacked = QStackedWidget()
         self.stacked.addWidget(self.database_analysis)
-        # self.stacked.addWidget(self.compare_analysis)
+        self.stacked.addWidget(self.compare_analysis)
         self.setCentralWidget(self.stacked)
-        # Example: switch with a button
 
         menu = self.menuBar()
         if menu is None:
             raise RuntimeError("Menu bar error.")
 
-        switch_menu = menu.addMenu("Options")
+        switch_menu = menu.addMenu("Menu")
         if switch_menu is None:
             raise RuntimeError("Switch menu error.")
-        switch_menu.addAction(
-            "Analyse one database", lambda: self.change_ui(0)
-        )
-        switch_menu.addAction(
-            "Merge Analysis (work in progress)", lambda: self.change_ui(1)
-        )  # TODO: add compare widget and connect it here
+        switch_menu.addAction("Analysis creation", lambda: self.change_ui(0))
+        switch_menu.addAction("Analysis comparison", lambda: self.change_ui(1))
 
         help_menu = menu.addMenu("Help")
         if help_menu is None:
@@ -213,7 +216,7 @@ class HelpDialog(QDialog):
         )
 
 
-class DatabaseAnalysisWindow(QWidget):
+class DatabaseAnalysisWidget(QWidget):
     """Database Analysis Widget for LMT-EYE.
     It allows to load a database, rebuild events and create reports.
     """
@@ -221,10 +224,10 @@ class DatabaseAnalysisWindow(QWidget):
     def __init__(self):
         """Initialize the database analysis widget."""
         super().__init__()
-        self.database_path = None
+        self.database_path: Path | None = None
         self.threadpool = QThreadPool()
         self.threadpool.setMaxThreadCount(1)
-        # TODO: add option for multiple threads in app menu
+        self.first_load = True
         self._init_ui()
 
     def _init_ui(self):
@@ -353,6 +356,14 @@ class DatabaseAnalysisWindow(QWidget):
 
         self.info_label.setText(info_html)
 
+    def modify_btns_after_first_load(self):
+        """Modify buttons style after the first database is loaded."""
+        if self.first_load:
+            btn_style = get_btn_style(size=15, bold=True, bg_color="#1976D2")
+            self.update_info_btn.setStyleSheet(btn_style)
+            self.continue_btn.setStyleSheet(btn_style)
+            self.first_load = False
+
     def on_load_db(self):
         """Launches a file dialog for loading database."""
         file_path, _ = QFileDialog.getOpenFileName(
@@ -366,12 +377,7 @@ class DatabaseAnalysisWindow(QWidget):
         self.database_path = Path(file_path)
         self.update_database_info()
 
-        btn_style = get_btn_style(size=15, bold=True)
-        self.load_db_btn.setStyleSheet(btn_style)
-
-        btn_style = get_btn_style(size=15, bold=True, bg_color="#1976D2")
-        self.continue_btn.setStyleSheet(btn_style)
-        self.update_info_btn.setStyleSheet(btn_style)
+        self.modify_btns_after_first_load()
 
     def warning_message_load_database(self):
         """Check if a database is loaded, and show a warning if not."""
@@ -395,7 +401,7 @@ class DatabaseAnalysisWindow(QWidget):
             self.warning_message_load_database()
             return
 
-        dlg = DbAnalyzerSettingsWindow(self)
+        dlg = AnalysisSettingsWindow(self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             settings = dlg.settings
         else:
@@ -404,11 +410,11 @@ class DatabaseAnalysisWindow(QWidget):
 
         analyzer = DatabaseAnalyzer(self.database_path, settings)
 
-        progress_bar = DatabaseAnalysisProgressBar(
+        progress_bar = DbAnalysisProgressBar(
             self, database_name=self.database_path.stem
         )
 
-        worker = LMTEYEWorker(analyzer)
+        worker = AnalysisWorker(analyzer)
         worker.signals.rebuild_progress.connect(
             progress_bar.set_rebuild_progress
         )
@@ -423,7 +429,7 @@ class DatabaseAnalysisWindow(QWidget):
 
         print(f"Process for {self.database_path.stem} queued/started.")
 
-    def handle_open_analysis(self, analyzer: DatabaseAnalyzer):
+    def handle_open_analysis(self, analyzer: DatabaseAnalyzer | None):
         """Ask user if they want to open the processed results when the
         analysis is finished.
         Automatically close the window after 5 minutes if the user does not
@@ -450,12 +456,12 @@ class DatabaseAnalysisWindow(QWidget):
                 timeout_s=300,  # 5 minutes
             )
             if dlg.exec():
-                analyzer.open_analysis_output()
+                analyzer.open_results()
         else:
             QMessageBox.critical(self, "Error", "Analysis failed.")
 
 
-class LMTEYEWorkerSignals(QObject):
+class AnalysisWorkerSignals(QObject):
     """Manage signals from a running worker thread."""
 
     finished = pyqtSignal(bool)
@@ -464,11 +470,11 @@ class LMTEYEWorkerSignals(QObject):
     analyse_progress = pyqtSignal(int, int)  # current, max
 
 
-class LMTEYEWorker(QRunnable):
+class AnalysisWorker(QRunnable):
     def __init__(self, data_analyzer: DatabaseAnalyzer):
         super().__init__()
         self.data_analyzer = data_analyzer
-        self.signals = LMTEYEWorkerSignals()
+        self.signals = AnalysisWorkerSignals()
 
     @pyqtSlot()
     def run(self):
@@ -484,17 +490,17 @@ class LMTEYEWorker(QRunnable):
             self.signals.analyzer.emit(self.data_analyzer)
 
         except Exception as e:
-            print(f"Error in LMTEYEWorker: {e}")
+            print(f"Error in AnalysisWorker: {e}")
             traceback.print_exc()
             self.signals.finished.emit(False)
 
 
-class DatabaseAnalysisProgressBar(QDialog):
+class DbAnalysisProgressBar(QDialog):
     """Dialog to show progress during database analysis."""
 
     def __init__(
         self,
-        parent=None,
+        parent: QWidget | None = None,
         title="Analysis progression",
         database_name: str | None = None,
     ):
@@ -510,7 +516,7 @@ class DatabaseAnalysisProgressBar(QDialog):
         if database_name is None:
             label_text = "Processing. Please wait."
         else:
-            label_text = f"{database_name}\nis being processed, please wait."
+            label_text = f"{database_name}\nis being processed. Please wait."
 
         process_label = QLabel(label_text)
         process_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -542,6 +548,354 @@ class DatabaseAnalysisProgressBar(QDialog):
     def set_analyse_progress(self, value, maximum):
         self.analyse_progress.setMaximum(maximum)
         self.analyse_progress.setValue(value)
+
+    def progression_finished(self, is_finished: bool):
+        if is_finished:
+            self.accept()
+        else:
+            self.reject()
+
+
+class AnalysesComparisonWidget(QWidget):
+    """Analysis Comparison Widget for LMT-EYE.
+    It allows to select one or multiple database analyses, compare them
+    according to set animal information and create comparison reports.
+    """
+
+    def __init__(self):
+        """Initialize the analysis comparison widget."""
+        super().__init__()
+        self.analyses_path: list[Path] = []
+        self.threadpool = QThreadPool()
+        self.threadpool.setMaxThreadCount(1)
+        self.first_load = True
+        self._init_ui()
+
+    def _init_ui(self):
+        """Initialize the UI elements of the analysis comparison window."""
+        main_layout = QVBoxLayout()
+
+        #######################################
+        #   Analyses informations   #
+        #######################################
+        self.info_label = QLabel()
+        self.info_label.setTextFormat(Qt.TextFormat.RichText)
+        self.info_label.setText("<b>No loaded analyses.</b>")
+
+        analyses_info_row = QHBoxLayout()
+        analyses_info_row.addWidget(self.info_label)
+        main_layout.addLayout(analyses_info_row)
+
+        #######################################
+        #   Buttons row   #
+        #######################################
+
+        btn_style = get_btn_style(size=15, bold=True, bg_color="#1976D2")
+
+        # add analysis button
+        self.add_analysis_btn = QPushButton("Add")
+        self.add_analysis_btn.setStyleSheet(btn_style)
+        self.add_analysis_btn.setFixedSize(100, 50)
+        self.add_analysis_btn.clicked.connect(self.on_load_single_analysis)
+
+        btn_style = get_btn_style(size=15, bold=True)
+
+        # remove analysis button
+        self.remove_analyses_btn = QPushButton("Remove")
+        self.remove_analyses_btn.setStyleSheet(btn_style)
+        self.remove_analyses_btn.setFixedSize(100, 50)
+        self.remove_analyses_btn.clicked.connect(self.on_remove_analysis)
+
+        # continue button
+        self.continue_btn = QPushButton("Continue")
+        self.continue_btn.setStyleSheet(btn_style)
+        self.continue_btn.setFixedSize(150, 50)
+        self.continue_btn.clicked.connect(self.on_continue)
+
+        # row layout
+        buttons_row = QHBoxLayout()
+        buttons_row.addStretch(1)
+        buttons_row.addWidget(self.add_analysis_btn)
+        buttons_row.addWidget(self.remove_analyses_btn)
+        buttons_row.addWidget(self.continue_btn)
+        buttons_row.addStretch(1)
+
+        main_layout.addLayout(buttons_row)
+
+        self.setLayout(main_layout)
+
+    def update_analyses_info(self):
+        """Update analyses information displayed in the main window."""
+
+        common_columns = ComparisonSettings.get_common_columns_from_list(
+            self.analyses_path
+        )
+
+        info_html = f"""
+            <table style='font-size:13px;'>
+            <tr>
+                <td><b>Number of loaded analyses:</b></td>
+                <td>{len(self.analyses_path)}</td>
+            </tr>
+            <br>
+            <tr>
+                <td><b>Available Comparators:</b></td>
+                <td>{", ".join(sorted(common_columns))}</td>
+            </tr>
+            </table>
+        """
+        self.info_label.setText(info_html)
+
+    def show_invalid_folder(
+        self,
+        path: Path,
+        multiple_analyses: bool = False,
+    ):
+        """Show a warning message for an invalid analysis."""
+        if multiple_analyses:
+            msg = (
+                "The selected folder <b>DOES NOT</b> contain at least one "
+                "valid analysis."
+            )
+        else:
+            msg = (
+                f"The selected folder ({path.name}) <b>IS NOT</b> a valid "
+                "analysis."
+            )
+        QMessageBox.warning(
+            self,
+            "Invalid Analysis",
+            msg,
+        )
+
+    def modify_btns_after_first_load(self):
+        """Modify buttons style after the first analysis is loaded."""
+        if self.first_load:
+            btn_style = get_btn_style(size=15, bold=True, bg_color="#1976D2")
+            self.remove_analyses_btn.setStyleSheet(btn_style)
+            self.continue_btn.setStyleSheet(btn_style)
+            self.first_load = False
+
+    def on_load_single_analysis(self):
+        """Launches a file dialog for loading a single analysis."""
+        dir_path = QFileDialog.getExistingDirectory(
+            self,
+            "Select Analyses Directory",
+            str(Path.home()),
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if not dir_path:
+            return
+
+        dir_path = Path(dir_path)
+        if not (dir_path / ComparisonSettings.MAIN_TABLE).exists():
+            self.show_invalid_folder(dir_path)
+            return
+
+        self.analyses_path.append(dir_path)
+        self.update_analyses_info()
+
+        self.modify_btns_after_first_load()
+
+    def on_load_multiple_analyses(self):
+        """Launches a file dialog for loading multiple analyses."""
+        dir_path = QFileDialog.getExistingDirectory(
+            self,
+            "Select Analyses Directory",
+            str(Path.home()),
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if not dir_path:
+            return
+
+        dir_path = Path(dir_path)
+        analyses_path = [
+            dir
+            for dir in dir_path.iterdir()
+            if dir.is_dir() and (dir / ComparisonSettings.MAIN_TABLE).exists()
+        ]
+        if not analyses_path:
+            self.show_invalid_folder(dir_path, multiple_analyses=True)
+            return
+
+        self.analyses_path.extend(analyses_path)
+        self.update_analyses_info()
+
+        self.modify_btns_after_first_load()
+
+    def on_remove_analysis(self):
+        """Remove the last loaded analysis."""
+        if not self.analyses_path:
+            QMessageBox.information(
+                self,
+                "No Analysis to Remove",
+                "No analysis available for removal.",
+            )
+            return
+        analysis_dict = {path.name: path for path in self.analyses_path}
+        analysis_name, ok = QInputDialog.getItem(
+            self,
+            "Remove Analysis",
+            "Select analysis to remove:",
+            sorted(analysis_dict.keys()),
+            0,
+            False,
+        )
+        if not ok or not analysis_name:
+            return
+        self.analyses_path.remove(analysis_dict[analysis_name])
+        print(f"Removed analysis: {analysis_name}")
+        self.update_analyses_info()
+
+    def warning_message_load_analyses(self):
+        """Check if analyses are loaded, and show a warning if not."""
+        QMessageBox.warning(
+            self,
+            "No Analyses",
+            "You must load analyses before.",
+        )
+
+    def on_continue(self):
+        """Rebuild analyses then analyse it."""
+        if not self.analyses_path:
+            self.warning_message_load_analyses()
+            return
+
+        settings_window = ComparisonSettingsWindow(self, self.analyses_path)
+        if settings_window.exec() == QDialog.DialogCode.Accepted:
+            settings = settings_window.settings
+        else:
+            print("Process cancelled.")
+            return
+
+        progress_bar = AnalysesComparisonProgressBar(
+            self,
+            report_color=settings.report_color,
+            analyses_path=settings.analyses_path,
+        )
+
+        data_comparator = AnalysesComparator(settings)
+
+        worker = ComparisonWorker(data_comparator)
+        worker.signals.comparison_progress.connect(
+            progress_bar.set_comparison_progress
+        )
+        worker.signals.comparator.connect(self.handle_open_analysis)
+        worker.signals.finished.connect(progress_bar.progression_finished)
+
+        progress_bar.show()
+        self.threadpool.start(worker)
+
+        print(
+            f"Comparison process for {len(self.analyses_path)} "
+            "analyses queued/started."
+        )
+
+    def handle_open_analysis(self, comparator: AnalysesComparator | None):
+        """Ask user if they want to open the processed results when the
+        analysis is finished.
+        Automatically close the window after 5 minutes if the user does not
+        answer."""
+        if comparator is not None:
+            print("*** PROCESS FINISHED ***")
+
+            output = comparator.get_output_folder()
+            text = f"""
+            LMT-EYE has finished to compare the {len(self.analyses_path)}
+            analyses. Results are saved in:\n
+            {output}\n
+            Do you want to open the results ?
+            """
+            dlg = YesNoQuestion(
+                parent=self,
+                question=text,
+                timeout_s=300,  # 5 minutes
+            )
+            if dlg.exec():
+                comparator.open_results()
+        else:
+            QMessageBox.critical(self, "Error", "Analysis failed.")
+
+
+class ComparisonWorkerSignals(QObject):
+    """Manage signals from a running worker thread."""
+
+    finished = pyqtSignal(bool)
+    comparator = pyqtSignal(AnalysesComparator)
+    comparison_progress = pyqtSignal(int, int)  # current, max
+
+
+class ComparisonWorker(QRunnable):
+    def __init__(self, data_comparator: AnalysesComparator):
+        super().__init__()
+        self.data_comparator = data_comparator
+        self.signals = ComparisonWorkerSignals()
+
+    @pyqtSlot()
+    def run(self):
+        try:
+            self.data_comparator.compare_analyses(
+                progress_callback=self.signals.comparison_progress.emit
+            )
+            self.signals.finished.emit(True)
+            self.signals.comparator.emit(self.data_comparator)
+
+        except Exception as e:
+            print(f"Error in ComparisonWorker: {e}")
+            traceback.print_exc()
+            self.signals.finished.emit(False)
+
+
+class AnalysesComparisonProgressBar(QDialog):
+    """Dialog to show progress during analyses comparison."""
+
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        title="Comparison progression",
+        report_color: str = "RFID",
+        analyses_path: list[Path] = [],
+    ):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setModal(False)
+        self.setFixedSize(350, 220)
+        self._init_ui(report_color, analyses_path)
+
+    def _init_ui(self, report_color: str, analyses_path: list[Path]):
+        form = QFormLayout()
+
+        if not analyses_path:
+            label_text = f"Processing using {report_color}. Please wait."
+        else:
+            label_text = (
+                f"{len(analyses_path)} analyses are being processed.\n"
+                f"{report_color} is the comparator.\nPlease wait."
+            )
+
+        process_label = QLabel(label_text)
+        process_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        process_label.setStyleSheet("font-size: 15px;")
+
+        movie_label = QLabel()
+        movie_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.movie = QMovie(str(GIF_PATH))
+        if self.movie.isValid():
+            movie_label.setMovie(self.movie)
+            self.movie.start()
+
+        self.comparison_progress = QProgressBar()
+        self.comparison_progress.setMinimum(0)
+
+        form.addRow(process_label)
+        form.addRow(movie_label)
+        form.addRow("<b>Comparison Progress</b>", self.comparison_progress)
+
+        self.setLayout(form)
+
+    def set_comparison_progress(self, value, maximum):
+        self.comparison_progress.setMaximum(maximum)
+        self.comparison_progress.setValue(value)
 
     def progression_finished(self, is_finished: bool):
         if is_finished:

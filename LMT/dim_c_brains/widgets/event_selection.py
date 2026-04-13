@@ -29,7 +29,7 @@ class EventSelectionWindow(QDialog):
         self._init_ui()
 
     def _init_ui(self):
-        self.setWindowTitle("Select all wanted events")
+        self.setWindowTitle("LMT-EYE - Analysis Settings - Event Selection")
         self.setFixedSize(1000, 400)
         layout = QVBoxLayout()
 

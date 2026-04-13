@@ -6,41 +6,20 @@ import pandas as pd
 import plotly.express as px
 
 from dim_c_brains.scripts.reports_manager import HTMLReportManager
+from dim_c_brains.scripts.settings import AnalysisSettings
 from dim_c_brains.scripts.plotting_functions import (
     draw_nights,
     line_with_shade,
 )
 
-from lmtanalysis.Measure import oneMinute, oneHour, oneDay
-
 
 def generic_reports(
     report_manager: HTMLReportManager,
     df: pd.DataFrame | None,
-    **kwargs,
+    settings: AnalysisSettings,
 ):
     """Get all sensors datas in a dataframe using the given dataframe and
     construct all the generic reports into the given `HTMLReportManager`.
-
-    Other Parameters
-    ----------------
-    time : str, optional
-        The time column to use (default: "START_TIME").
-    night_begin : int, optional
-        The hour when the night begins (default: 20).
-    night_duration : int, optional
-        The duration of the night in hours (default: 12).
-    first_value_in_graph : bool, optional
-        Whether to include the first value in plots. It impacts the
-        rendering of columns graphs. By default, the first value is included.
-        (default: True).
-    time_window : int, optional
-        The time window in frames to use for calculating the number of events
-        and the total duration of events in each time bin (default: 15 minutes
-        in frames, i.e., 15 * oneMinute).
-    fps : int, optional
-        The frames per second of the video to use for time calculations
-        (default: 30).
     """
 
     report_manager.reports_creation_focus("Sensors")
@@ -59,18 +38,18 @@ def generic_reports(
     #   Constants & Parameters   #
     #######################################
 
-    TIME = kwargs.get("time", "START_TIME")
+    X_axis = settings.report_x_axis
 
-    if kwargs.get("first_value_in_graph", True):
-        MASK = df.index == df.index
-    else:
-        MASK = df["START_FRAME"] != df["START_FRAME"].iloc[0]
+    NB_MIN_PER_BIN = settings.time_window / settings.fps / 60
+
+    # if settings.bin_rounding:
+    #     df = df[df["START_FRAME"] != df["START_FRAME"].iloc[0]]
 
     nights_parameters = {
         "start_time": df["START_TIME"].min(),
         "end_time": df["END_TIME"].max(),
-        "night_begin": kwargs.get("night_begin", 20),
-        "night_duration": kwargs.get("night_duration", 12),
+        "night_begin": settings.night_begin,
+        "night_duration": settings.night_duration,
     }
 
     sensors = [
@@ -111,13 +90,8 @@ def generic_reports(
     report_manager.add_card(
         name="Time interval unit",
         content=f"""
-        Calculated time bin is {
-            kwargs.get("time_window", 15 * oneMinute)
-        } frames.<br>It corresponds to {
-            kwargs.get("time_window", 15 * oneMinute)
-            / kwargs.get("fps", 30)
-            / 60
-        } minutes.
+        Calculated time bin is {settings.time_window} frames.
+        <br>It corresponds to {NB_MIN_PER_BIN:.1f} minutes.
         """,
     )
     report_manager.add_card(
@@ -167,8 +141,8 @@ def generic_reports(
 
         if mean_col in df.columns:
             fig = line_with_shade(
-                df[MASK],
-                TIME,
+                df,
+                X_axis,
                 mean_col,
                 y_min_col=min_col,
                 y_max_col=max_col,
@@ -178,13 +152,13 @@ def generic_reports(
             fig.update_layout(
                 title=f"{sensor_label} over time",
                 yaxis_title=f"{sensor_label} ({unit})",
-                xaxis_title=f"Time ({TIME})",
+                xaxis_title=f"Time ({X_axis})",
             )
 
             report_title = f"{sensor_label} mean with min and max"
             report_description = f"""
             {sensor_label} mean ({mean_col}) with the minimum and maximum as
-            the shaded area ({min_col}, {max_col}) over time ({TIME}).<br>
+            the shaded area ({min_col}, {max_col}) over time ({X_axis}).<br>
             """
             if sensor == "LIGHTVISIBLE":
                 report_description += """
@@ -199,7 +173,7 @@ def generic_reports(
                 top_note=report_description,
                 graph_datas=df[
                     [
-                        TIME,
+                        X_axis,
                         "END_TIME",
                         mean_col,
                         min_col,
