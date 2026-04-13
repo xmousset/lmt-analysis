@@ -129,8 +129,11 @@ def generic_reports(
         .sum()
         .reset_index()
     )
+    df_plot["EVENT_COUNT_PER_DAY"] = df_plot["EVENT_COUNT"] / NB_DAYS
+    df_plot["DURATION_PER_DAY"] = df_plot["DURATION"] / NB_DAYS
 
     figs = []
+
     figs.append(
         px.bar(
             df_plot,
@@ -143,6 +146,7 @@ def generic_reports(
             **plot_param,
         )
     )
+
     figs.append(
         px.bar(
             df_plot,
@@ -157,13 +161,46 @@ def generic_reports(
         )
     )
 
+    figs.append(
+        px.bar(
+            df_plot,
+            x=comparator,
+            y="EVENT_COUNT_PER_DAY",
+            title=(
+                f"Total <i>{event_name}</i> number of events "
+                f"per {comparator} per day"
+            ),
+            labels={"EVENT_COUNT_PER_DAY": "EVENT_COUNT per day"},
+            **plot_param,
+        )
+    )
+
+    figs.append(
+        px.bar(
+            df_plot,
+            x=comparator,
+            y="DURATION_PER_DAY",
+            title=(
+                f"Total <i>{event_name}</i> events duration "
+                f"per {comparator} per day"
+            ),
+            labels={"DURATION_PER_DAY": "DURATION (min) per day"},
+            **plot_param,
+        )
+    )
+
     report_description = f"""
     Total number of <i>{event_name}</i> event (EVENT_COUNT) and the sum of
     their duration in minutes (DURATION) for each {comparator}.
     <br>
-    This graph allows a visualization of the number of events each 
-    {comparator} has done and the time spent in this event.<br>
+    Second line of graphs shows the same data but divided by the number of days
+    ({NB_DAYS} days). It represents the average daily number of events
+    (EVENT_COUNT_PER_DAY) and the average daily time spent in this event
+    (DURATION_PER_DAY) for each {comparator}.
     <br>
+    This graph allows a visualization of the number of events each 
+    {comparator} has done and the time spent in this event.
+    <br><br>
     <div style="color: #DE9BDE"><i>
     <b>Note:</b> Data for each {comparator} is always valid.<br>
     However, if an event involves N animals (N > 1) and is symmetrical
@@ -175,68 +212,7 @@ def generic_reports(
         name=f"Event overview",
         figures=figs,
         top_note=report_description,
-        graph_datas=df_plot,
-    )
-
-    #######################################
-    #   Mean and STD   #
-    #######################################
-
-    figs = []
-
-    df_plot = (
-        df.groupby(comparator, observed=True)[["EVENT_COUNT", "DURATION"]]
-        .agg(["mean", "std"])
-        .reset_index()
-    )
-    df_plot.columns = [
-        comparator,
-        "EVENT_COUNT_MEAN",
-        "EVENT_COUNT_STD",
-        "DURATION_MEAN",
-        "DURATION_STD",
-    ]
-
-    figs.append(
-        px.bar(
-            df_plot,
-            x=comparator,
-            y="EVENT_COUNT_MEAN",
-            error_y="EVENT_COUNT_STD",
-            error_y_minus=[0] * len(df_plot),
-            title=(
-                f"Mean and Std of EVENT_COUNT per bin " f"per {comparator}"
-            ),
-            labels={"EVENT_COUNT_MEAN": "EVENT_COUNT per bin"},
-            **plot_param,
-        )
-    )
-
-    figs.append(
-        px.bar(
-            df_plot,
-            x=comparator,
-            y="DURATION_MEAN",
-            error_y="DURATION_STD",
-            error_y_minus=[0] * len(df_plot),
-            title=(f"Mean and Std of DURATION per bin " f"per {comparator}"),
-            labels={"DURATION_MEAN": "DURATION (min) per bin"},
-            **plot_param,
-        )
-    )
-
-    report_title = "Event duration mean and standard deviation"
-    report_description = f"""
-    The mean of all <i>{event_name}</i> events duration (DURATION_MEAN) with
-    the standard deviation (DURATION_STD) per {comparator}.
-    <br>
-    This graph allows a visualization of the mean duration of one event for
-    each {comparator} as well as the variability of this duration.
-    """
-    report_manager.add_multi_fig_report(
-        name=report_title,
-        figures=figs,
-        top_note=report_description,
+        max_fig_in_row=2,
         graph_datas=df_plot,
     )
 

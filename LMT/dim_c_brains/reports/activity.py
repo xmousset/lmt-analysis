@@ -85,7 +85,12 @@ def generic_reports(
     )
     report_manager.add_card(
         name="Distance unit",
-        content="All distances are in centimeters (<i>cm</i>).",
+        content=(
+            "<b>All distances are in centimeters (<i>cm</i>)</b><br>"
+            "Except for the report '<i>Total distance travelled</i>' "
+            "which distance unit is in kilometers (<i>km</i>) for better "
+            "readability."
+        ),
     )
     report_manager.add_card(
         name="Speed unit",
@@ -127,6 +132,54 @@ def generic_reports(
         )
 
     #######################################
+    #   Total distance   #
+    #######################################
+
+    df_plot = (
+        df.groupby([comparator], observed=True)[["DISTANCE"]]
+        .sum()
+        .reset_index()
+    )
+    df_plot["DISTANCE"] = df_plot["DISTANCE"] / 10**5  # convert from cm to km
+    df_plot["DISTANCE_PER_DAY"] = df_plot["DISTANCE"] / NB_DAYS
+
+    figs = []
+
+    figs.append(
+        px.bar(
+            df_plot,
+            x=comparator,
+            y="DISTANCE",
+            title=f"Total <i>DISTANCE</i> travelled per {comparator}",
+            labels={"DISTANCE": "DISTANCE (<i>km</i>)"},
+            **plot_param,
+        )
+    )
+
+    figs.append(
+        px.bar(
+            df_plot,
+            x=comparator,
+            y="DISTANCE_PER_DAY",
+            title=f"Total <i>DISTANCE</i> travelled per {comparator} per day",
+            labels={"DISTANCE_PER_DAY": "DISTANCE_PER_DAY (<i>km</i>)"},
+            **plot_param,
+        )
+    )
+
+    report_title = "Total distance travelled"
+    report_description = f"""
+    <i>DISTANCE</i> travelled for each {comparator} in total and per day 
+    (divided by {NB_DAYS} days) in kilometers (km).
+    """
+    report_manager.add_multi_fig_report(
+        name=report_title,
+        figures=figs,
+        top_note=report_description,
+        graph_datas=df_plot,
+    )
+
+    #######################################
     #   Distance   #
     #######################################
 
@@ -139,7 +192,7 @@ def generic_reports(
     )
     fig = draw_nights(fig, **nights_parameters)
 
-    report_title = f"Total distance travelled"
+    report_title = f"Total distance travelled over time"
     report_description = f"""
     This graph shows the total distance in centimeters (DISTANCE) travelled by
     each {comparator} over {x_axis} during the interval time window.
@@ -166,7 +219,7 @@ def generic_reports(
     )
     fig = draw_nights(fig, **nights_parameters)
 
-    report_title = f"Stop duration"
+    report_title = f"Stop duration over time"
     report_description = f"""
     Duration in minutes of event <i>Stop</i> (STOP_DURATION) by each 
     {comparator} over time ({x_axis}) during the interval time window.
@@ -193,7 +246,7 @@ def generic_reports(
     )
     fig = draw_nights(fig, **nights_parameters)
 
-    report_title = f"Move duration"
+    report_title = f"Move duration over time"
     report_description = f"""
     Duration in minutes of event <i>Move</i> (MOVE_DURATION) by each 
     {comparator} over time ({x_axis}) during the interval time window.
@@ -220,7 +273,7 @@ def generic_reports(
     )
     fig = draw_nights(fig, **nights_parameters)
 
-    report_title = f"Undetected duration"
+    report_title = f"Undetected duration over time"
     report_description = f"""
     Duration in minutes of event <i>Undetected</i> (UNDETECTED_DURATION) by 
     each {comparator} over time ({x_axis}) during the interval time window.
@@ -348,14 +401,14 @@ def generic_reports(
     fig = draw_nights(fig, **nights_parameters)
 
     # description for STD
-    report_title = f"Mean speed with std"
+    report_title = f"Mean speed with std over time"
     report_description = f"""
     SPEED_MEAN with the standard deviation SPEED_STD for each
     {comparator} over {x_axis}.
     """
 
     # description for min max
-    # report_title = f"Mean speed with min and max"
+    # report_title = f"Mean speed with min and max over time"
     # report_description = f"""
     # SPEED_MEAN with SPEED_MIN and SPEED_MAX for each
     # {comparator} over {x_axis}.
