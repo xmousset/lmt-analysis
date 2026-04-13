@@ -233,9 +233,9 @@ def btn_colors(name: Literal["blue", "green", "red"] | str) -> str:
         case "blue":
             return "#2065AA"
         case "green":
-            return "#336837"  # "#449225" "#1C7C4C"
+            return "#267C47"
         case "red":
-            return "#913C1A"  # "#D24D19" "#802239"
+            return "#911A3E"
         case _:
             return "#000000"
 

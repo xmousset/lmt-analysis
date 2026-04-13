@@ -489,7 +489,7 @@ class AnalysisSettingsWindow(QDialog):
         self.load_settings_btn = QPushButton("Load settings")
         self.load_settings_btn.setToolTip("Load settings from a JSON file.")
         self.load_settings_btn.setStyleSheet(btn_style)
-        self.load_settings_btn.setFixedWidth(120)
+        self.load_settings_btn.setFixedWidth(130)
         self.load_settings_btn.clicked.connect(self.on_load_settings)
 
         # save settings
@@ -498,7 +498,7 @@ class AnalysisSettingsWindow(QDialog):
             "Save current settings to a JSON file."
         )
         self.save_settings_btn.setStyleSheet(btn_style)
-        self.save_settings_btn.setFixedWidth(120)
+        self.save_settings_btn.setFixedWidth(130)
         self.save_settings_btn.clicked.connect(self.on_save_settings)
 
         # set default settings
@@ -507,7 +507,7 @@ class AnalysisSettingsWindow(QDialog):
             "Save current settings as default."
         )
         self.default_settings_btn.setStyleSheet(btn_style)
-        self.default_settings_btn.setFixedWidth(120)
+        self.default_settings_btn.setFixedWidth(130)
         self.default_settings_btn.clicked.connect(self.on_default_settings)
 
         # row layout
@@ -525,14 +525,14 @@ class AnalysisSettingsWindow(QDialog):
         #   VALIDATION BUTTONS   #
         #######################################
         # process
-        btn_style = get_btn_style(txt_color="white", bg_color="blue")
+        btn_style = get_btn_style(txt_color="white", bg_color="green")
         ok_btn = QPushButton("Process")
         ok_btn.setFixedWidth(100)
         ok_btn.setStyleSheet(btn_style)
         ok_btn.clicked.connect(self.on_accept)
 
         # cancel
-        btn_style = get_btn_style(txt_color="white", bg_color="black")
+        btn_style = get_btn_style(txt_color="white", bg_color="red")
         cancel_btn = QPushButton("Cancel")
         cancel_btn.setFixedWidth(100)
         cancel_btn.setStyleSheet(btn_style)

@@ -129,14 +129,14 @@ class ComparisonSettingsWindow(QDialog):
         #   VALIDATION BUTTONS   #
         #######################################
         # process
-        btn_style = get_btn_style(txt_color="white", bg_color="blue")
+        btn_style = get_btn_style(txt_color="white", bg_color="green")
         ok_btn = QPushButton("Process")
         ok_btn.setFixedWidth(100)
         ok_btn.setStyleSheet(btn_style)
         ok_btn.clicked.connect(self.on_accept)
 
         # cancel
-        btn_style = get_btn_style(txt_color="white", bg_color="black")
+        btn_style = get_btn_style(txt_color="white", bg_color="red")
         cancel_btn = QPushButton("Cancel")
         cancel_btn.setFixedWidth(100)
         cancel_btn.setStyleSheet(btn_style)
