@@ -17,6 +17,7 @@ from dim_c_brains.scripts.settings import AnalysisSettings, ComparisonSettings
 def generic_reports(
     report_manager: HTMLReportManager,
     df: pd.DataFrame | None,
+    hist_df: pd.DataFrame | None,
     event_name: str,
     settings: AnalysisSettings | ComparisonSettings,
 ):
@@ -34,9 +35,7 @@ def generic_reports(
         )
         return None
 
-    #######################################
-    #   Constants & Parameters   #
-    #######################################
+    # ================ Parameters ================
 
     x_axis = settings.report_x_axis
     comparator = settings.report_color
@@ -60,17 +59,14 @@ def generic_reports(
     plot_param = settings.get_plot_parameters(df)
     xlsl_param = settings.get_xlsx_parameters(df)
 
-    ################
-    #   Graph style   #
-    ################
+    # ================ Graph style ================
+
     if comparator == "RFID":
         plot = px.line
     else:
         plot = px.scatter
 
-    #######################################
-    #   Titles   #
-    #######################################
+    # ================ Titles ================
 
     report_manager.add_title(
         name=f"Analysis of <i>{event_name}</i> events",
@@ -109,9 +105,7 @@ def generic_reports(
             content=msg,
         )
 
-    #######################################
-    #   Event overview card   #
-    #######################################
+    # ================ Event overview card ================
 
     card = get_event_card(df, [event_name], NB_ANIMALS, NB_DAYS)
 
@@ -120,9 +114,7 @@ def generic_reports(
         content=card,
     )
 
-    #######################################
-    #   Total event   #
-    #######################################
+    # ================ Total event ================
 
     df_plot = (
         df.groupby([comparator], observed=True)[["EVENT_COUNT", "DURATION"]]
@@ -216,9 +208,7 @@ def generic_reports(
         graph_datas=df_plot,
     )
 
-    #######################################
-    #   Event per hour of the day   #
-    #######################################
+    # ================ Event per hour of the day ================
 
     df_plot = df.copy()
     df_plot["DAYS"] = df_plot[x_axis].apply(lambda x: x.day)
@@ -312,9 +302,7 @@ def generic_reports(
         graph_datas=df_plot,
     )
 
-    #######################################
-    #   Event counts   #
-    #######################################
+    # ================ Event counts ================
 
     fig = plot(
         df,
@@ -342,9 +330,7 @@ def generic_reports(
         graph_datas=df[[*xlsl_param, "EVENT_COUNT", "DURATION"]],
     )
 
-    #######################################
-    #   Event duration   #
-    #######################################
+    # ================ Event duration ================
 
     fig = plot(
         df,
@@ -375,7 +361,30 @@ def generic_reports(
         graph_datas=df[[*xlsl_param, "EVENT_COUNT", "DURATION"]],
     )
 
-    #######################################
-    #   TABLE   #
-    #######################################
+    # ================ Histogram ================
+    if hist_df is not None:
+        fig = plot(
+            hist_df,
+            x="NBFRAMES",
+            y="COUNT",
+            color=comparator,
+        )
+
+        report_title = "Histogram of event count over their duration"
+        report_description = f"""
+        Event count (COUNT) for <i>{event_name}</i> for each duration (NBFRAMES)
+        for each {comparator}.
+        <br>
+        This graph allows a histogram visualization of the duration of 
+        <i>{event_name}</i> event (NBFRAMES) for each {comparator}.
+        """
+
+        report_manager.add_report(
+            name=report_title,
+            html_or_figure=fig,
+            top_note=report_description,
+            graph_datas=hist_df,
+        )
+
+    # ================ Table ================
     report_manager.add_table_headers(name="complete table", df=df)

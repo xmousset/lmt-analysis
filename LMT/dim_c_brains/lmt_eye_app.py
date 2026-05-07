@@ -949,13 +949,13 @@ if __name__ == "__main__":
         # not on windows, do nothing
         pass
 
+    sys.excepthook = exception_hook
+
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(True)
     app.setApplicationVersion(APP_VERSION)
     app.setWindowIcon(QIcon(str(ICON_PATH)))
     app.setApplicationName("LMT-EYE")
-
-    sys.excepthook = exception_hook
 
     main_window = LMTEYEApp()
 

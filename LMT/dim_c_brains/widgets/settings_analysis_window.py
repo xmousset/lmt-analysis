@@ -64,9 +64,7 @@ class AnalysisSettingsWindow(QDialog):
     def _init_ui(self):
         form = QFormLayout()
 
-        #######################################
-        #   Output folder   #
-        #######################################
+        # ================ OUTPUT FOLDER ================
 
         # output_folder
         if self.settings.output_folder is None:
@@ -76,9 +74,7 @@ class AnalysisSettingsWindow(QDialog):
 
         self.output_folder_edit = QLineEdit(output_text)
         self.output_folder_edit.setReadOnly(True)
-        self.output_folder_edit.setPlaceholderText(
-            "same folder as database by default"
-        )
+        self.output_folder_edit.setPlaceholderText("same folder as database")
         self.output_folder_edit.setToolTip(
             "Folder where analysis results will be saved."
         )
@@ -94,9 +90,7 @@ class AnalysisSettingsWindow(QDialog):
 
         form.addRow("<b>Output Folder</b>", out_row)
 
-        #######################################
-        #   Animal Type   #
-        #######################################
+        # ================ ANIMAL TYPE ================
 
         # animal_type
         self.animal_type_box = QComboBox()
@@ -120,9 +114,37 @@ class AnalysisSettingsWindow(QDialog):
         form.addRow("<b>Animal type</b>", animal_type_row)
         form.addRow(self.Qhline())
 
-        #######################################
-        #   EVENTS   #
-        #######################################
+        # ================ REPORTS OPTIONS ================
+
+        # display_trajectory
+        self.trajectory_cb = QCheckBox()
+        self.trajectory_cb.setToolTip(
+            "Whether to display the trajectory reports in the results.\n"
+            "Could drastically increase memory usage and processing time."
+        )
+        self.trajectory_cb.setChecked(self.settings.display_trajectory)
+
+        # display_sensors
+        self.sensors_cb = QCheckBox()
+        self.sensors_cb.setToolTip(
+            "Whether to display the sensors reports in the results.\n"
+            "Could drastically increase memory usage and processing time."
+        )
+        self.sensors_cb.setChecked(self.settings.display_sensors)
+
+        # row layout
+        reports_options_row = QHBoxLayout()
+        reports_options_row.addWidget(QLabel("Trajectory:"))
+        reports_options_row.addWidget(self.trajectory_cb)
+        reports_options_row.addStretch(1)
+        reports_options_row.addWidget(QLabel("Sensors:"))
+        reports_options_row.addWidget(self.sensors_cb)
+        reports_options_row.addStretch(1)
+
+        form.addRow("<b>Reports</b>", reports_options_row)
+        form.addRow(self.Qhline())
+
+        # ================ EVENTS ================
 
         # events (known)
         btn_style = get_btn_style(txt_color="white", bg_color="blue")
@@ -146,9 +168,9 @@ class AnalysisSettingsWindow(QDialog):
         # rebuild_events
         self.rebuild_box = QCheckBox()
         self.rebuild_box.setToolTip(
-            "Wether to rebuild all selected events in the database before "
-            "analysis (Checked)\n or to rebuild only the events that does not "
-            "exists in the database (Unchecked).\n Unchecked is faster."
+            "Whether to rebuild all selected events in the database before "
+            "analysis (Checked)\n or to rebuild only the events that do not "
+            "exist in the database (Unchecked).\n Unchecked is faster."
         )
         self.rebuild_box.setChecked(self.settings.rebuild_events)
 
@@ -167,9 +189,7 @@ class AnalysisSettingsWindow(QDialog):
         form.addRow("<b>Custom events</b>", custom_row)
         form.addRow(self.Qhline())
 
-        #######################################
-        #   ANALYSIS FILTERS   #
-        #######################################
+        # ================ ACTIVITY FILTERS ================
 
         # filter_flickering
         self.flickering_cb = QCheckBox()
@@ -190,46 +210,72 @@ class AnalysisSettingsWindow(QDialog):
         self.stop_cb.setChecked(self.settings.filter_stop)
 
         # row layout
-        filters_row = QHBoxLayout()
-        filters_row.addWidget(QLabel("Flickering:"))
-        filters_row.addWidget(self.flickering_cb)
-        filters_row.addStretch(1)
-        filters_row.addWidget(QLabel("Stop:"))
-        filters_row.addWidget(self.stop_cb)
-        filters_row.addStretch(1)
+        activity_filters_row = QHBoxLayout()
+        activity_filters_row.addStretch(1)
+        activity_filters_row.addWidget(QLabel("Flickering:"))
+        activity_filters_row.addWidget(self.flickering_cb)
+        activity_filters_row.addStretch(1)
+        activity_filters_row.addWidget(QLabel("Stop:"))
+        activity_filters_row.addWidget(self.stop_cb)
+        activity_filters_row.addStretch(1)
 
-        form.addRow("<b>Filters</b>", filters_row)
-        form.addRow(self.Qhline())
+        form.addRow("<b>Activity filters</b>", activity_filters_row)
 
-        #######################################
-        #   ANALYZED AREA   #
-        #######################################
+        # ================ EVENT FILTERS ================
+
+        # event_minimal_duration
+        self.event_min_duration_spin = QSpinBox()
+        self.event_min_duration_spin.setToolTip(
+            "Whether to filter out all the events that are not long enough.\n"
+            "All events that are at least this duration (in frames) will be "
+            "kept, the others will be filtered out.\n"
+            "This is only applied for event analysis. Filters like stop or "
+            "flickering and events display in <i>Activity</i> reports are not "
+            "affected.\nDefault value is 1, which means that no events will "
+            "be filtered out based on duration."
+        )
+        self.event_min_duration_spin.setValue(self.settings.event_min_duration)
+        self.event_min_duration_spin.setRange(1, 180)
+        self.event_min_duration_spin.setValue(self.settings.fps)
+        self.event_min_duration_spin.setMinimumWidth(75)
+
+        event_filters_row = QHBoxLayout()
+        event_filters_row.addStretch(1)
+        event_filters_row.addWidget(QLabel("Minimal duration:"))
+        event_filters_row.addWidget(self.event_min_duration_spin)
+        event_filters_row.addWidget(QLabel("in <i>frames</i>"))
+
+        event_filters_row.addStretch(1)
+        form.addRow("<b>Event filter</b>", event_filters_row)
+
+        # ================ AREA FILTERING ================
+
         btn_style = get_btn_style(txt_color="white", bg_color="blue")
         self.select_area_btn = QPushButton("Select Area")
         self.select_area_btn.setToolTip(
             "Select the area to be analyzed in the analysis process."
         )
         self.select_area_btn.setStyleSheet(btn_style)
-        self.select_area_btn.setFixedWidth(150)
+        self.select_area_btn.setFixedWidth(130)
         self.select_area_btn.clicked.connect(self.on_select_area)
 
         self.selected_area_label = QLabel()
         self._update_area_label()
 
-        area_row = QVBoxLayout()
+        area_row = QHBoxLayout()
         area_row.addWidget(
             self.select_area_btn, alignment=Qt.AlignmentFlag.AlignCenter
         )
+        area_row.addStretch(1)
         area_row.addWidget(
             self.selected_area_label, alignment=Qt.AlignmentFlag.AlignCenter
         )
+        area_row.addStretch(1)
 
-        form.addRow("<b>Area filtering</b>", area_row)
+        form.addRow("<b>Area filter</b>", area_row)
         form.addRow(self.Qhline())
 
-        #######################################
-        #   TIME, PROCESSING and FPS   #
-        #######################################
+        # ================ TIME, PROCESSING and FPS ================
 
         # time_window (frames and minutes)
         self.time_window_frames = QSpinBox()
@@ -253,19 +299,20 @@ class AnalysisSettingsWindow(QDialog):
         self.process_window_frames = QSpinBox()
         self.process_window_frames.setToolTip(
             "Defines the time window to consider for each processing step "
-            "(in frames). Useful if the analysis is very long and needs to "
+            "(in frames).\nUseful if the analysis is very long and needs to "
             "be processed in chunks.\n"
-            "Do not impact analysis results."
+            "DO NOT IMPACT ANALYSIS RESULTS."
         )
         self.process_window_frames.setRange(1, 100_000_000)
         self.process_window_frames.setValue(self.settings.processing_window)
+        self.process_window_frames.setStyleSheet("color: grey;")
 
         self.process_window_hours = QDoubleSpinBox()
         self.process_window_hours.setToolTip(
             "Defines the time window to consider for each processing step "
-            "(in hours). Useful if the analysis is very long and needs to "
+            "(in hours).\nUseful if the analysis is very long and needs to "
             "be processed in chunks.\n"
-            "Do not impact analysis results."
+            "DO NOT IMPACT ANALYSIS RESULTS."
         )
         self.process_window_hours.setDecimals(0)
         self.process_window_hours.setRange(0, 10_000)
@@ -274,6 +321,7 @@ class AnalysisSettingsWindow(QDialog):
                 self.settings.processing_window / (self.settings.fps * 60 * 60)
             )
         )
+        self.process_window_hours.setStyleSheet("color: grey;")
 
         # bin_rounding
         self.bin_rounding_cb = QCheckBox()
@@ -330,13 +378,19 @@ class AnalysisSettingsWindow(QDialog):
 
         proc_row = QHBoxLayout()
         proc_row.addStretch(1)
-        proc_row.addWidget(QLabel("Frames:"))
+        proc_frames_label = QLabel("Frames:")
+        proc_frames_label.setStyleSheet("color: grey;")
+        proc_row.addWidget(proc_frames_label)
         proc_row.addWidget(self.process_window_frames)
         proc_row.addStretch(1)
-        proc_row.addWidget(QLabel("Hours:"))
+        proc_hours_label = QLabel("Hours:")
+        proc_hours_label.setStyleSheet("color: grey;")
+        proc_row.addWidget(proc_hours_label)
         proc_row.addWidget(self.process_window_hours)
         proc_row.addStretch(1)
-        form.addRow("<b>Processing</b>", proc_row)
+        form.addRow(
+            "<span style='color: grey;'><b>Processing</b></span>", proc_row
+        )
 
         fps_row = QHBoxLayout()
         fps_row.addStretch(1)
@@ -350,9 +404,8 @@ class AnalysisSettingsWindow(QDialog):
 
         form.addRow(self.Qhline())
 
-        #######################################
-        #   NIGHT TIME   #
-        #######################################
+        # ================ NIGHT TIME ================
+
         # night_begin
         self.night_begin_spin = QSpinBox()
         self.night_begin_spin.setToolTip(
@@ -393,11 +446,10 @@ class AnalysisSettingsWindow(QDialog):
         night_row.addWidget(self.night_end_label)
         night_row.addStretch(1)
 
-        form.addRow("<b>Nights</b>", night_row)
+        form.addRow("<b>Night hours</b>", night_row)
 
-        #######################################
-        #   UTC TIME ZONE   #
-        #######################################
+        # ================ UTC TIME ZONE ================
+
         # utc_offset
         self.utc_offset_spin = QDoubleSpinBox()
         self.utc_offset_spin.setToolTip(
@@ -417,9 +469,7 @@ class AnalysisSettingsWindow(QDialog):
         form.addRow("<b>Time Zone</b>", utc_row)
         form.addRow(self.Qhline())
 
-        #######################################
-        #   ANALYSIS LIMITS (start, end)   #
-        #######################################
+        # ================ ANALYSIS LIMITS (start, end) ================
 
         # processing_limits (start)
         if self.settings.processing_limits[0] is None:
@@ -476,13 +526,12 @@ class AnalysisSettingsWindow(QDialog):
         )
 
         # row layout
-        form.addRow("<b>Time limits</b>", limits_row)
+        form.addRow("<b>Analysis limits</b>", limits_row)
         form.addRow(limits_infos_row)
         form.addRow(self.Qhline())
 
-        #######################################
-        #   SETTINGS BUTTONS   #
-        #######################################
+        # ================ SETTINGS BUTTONS ================
+
         btn_style = get_btn_style(size=13, txt_color="white", bg_color="black")
 
         # load settings
@@ -521,9 +570,8 @@ class AnalysisSettingsWindow(QDialog):
         form.addRow(settings_row)
         form.addRow(self.Qhline())
 
-        #######################################
-        #   VALIDATION BUTTONS   #
-        #######################################
+        # ================ VALIDATION BUTTONS ================
+
         # process
         btn_style = get_btn_style(txt_color="white", bg_color="green")
         ok_btn = QPushButton("Process")
@@ -551,9 +599,7 @@ class AnalysisSettingsWindow(QDialog):
         ok_btn.setFocus()
         self._update_ui_from_settings()
 
-    #######################################
-    #   UI x Settings   #
-    #######################################
+    # ================ UI x Settings ================
 
     def _update_ui_from_settings(self):
         """Update UI elements based on LMT-EYE settings."""
@@ -568,8 +614,11 @@ class AnalysisSettingsWindow(QDialog):
         self.custom_event_edit.setText(", ".join(custom_events))
 
         self.animal_type_box.setCurrentText(self.settings.animal_type.name)
+        self.sensors_cb.setChecked(self.settings.display_sensors)
+        self.trajectory_cb.setChecked(self.settings.display_trajectory)
         self.flickering_cb.setChecked(self.settings.filter_flickering)
         self.stop_cb.setChecked(self.settings.filter_stop)
+        self.event_min_duration_spin.setValue(self.settings.event_min_duration)
         self.time_window_frames.setValue(self.settings.time_window)
         self._on_time_frames_changed()  # to update minutes accordingly
         self.process_window_frames.setValue(self.settings.processing_window)
@@ -591,8 +640,11 @@ class AnalysisSettingsWindow(QDialog):
         self.settings.animal_type = AnimalType[
             self.animal_type_box.currentText()
         ]
+        self.settings.display_sensors = self.sensors_cb.isChecked()
+        self.settings.display_trajectory = self.trajectory_cb.isChecked()
         self.settings.filter_flickering = self.flickering_cb.isChecked()
         self.settings.filter_stop = self.stop_cb.isChecked()
+        self.settings.event_min_duration = self.event_min_duration_spin.value()
         self.settings.time_window = self.time_window_frames.value()
         self.settings.processing_window = self.process_window_frames.value()
         self.settings.fps = self.fps_spin.value()
@@ -631,9 +683,7 @@ class AnalysisSettingsWindow(QDialog):
 
         self.settings.processing_limits = limits
 
-    #######################################
-    #   UPDATE FUNCTIONS   #
-    #######################################
+    # ================ UPDATE FUNCTIONS ================
 
     def _clamp_time_window_values(self, frames: int):
         """Clamp time window frames and update minutes accordingly."""
@@ -738,9 +788,7 @@ class AnalysisSettingsWindow(QDialog):
         custom_events = self.get_custom_events_from_ui()
         self.settings.events = selected_known_events | custom_events
 
-    #######################################
-    #   UTILS FUNCTIONS   #
-    #######################################
+    # ================ UTILS FUNCTIONS ================
 
     def get_custom_events_from_ui(self):
         """Get the custom events from UI as a set."""

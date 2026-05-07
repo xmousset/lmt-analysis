@@ -159,7 +159,8 @@ class DataframeConstructor:
         self,
         animal: Animal,
         event: str,
-        bin_iterator: list[tuple[int, int]],
+        event_min_duration: int = 0,
+        bin_iterator: list[tuple[int, int]] | None = None,
     ):
         """Count occurrences of a specific event according to binning.
 
@@ -172,6 +173,9 @@ class DataframeConstructor:
                 Total duration (in frames) of the event in each bin.
         """
 
+        if bin_iterator is None:
+            bin_iterator = [(self.binner.start_frame, self.binner.end_frame)]
+
         event_timeline = EventTimeLine(
             self.animal_pool.conn,
             event,
@@ -179,6 +183,7 @@ class DataframeConstructor:
             minFrame=bin_iterator[0][0],
             maxFrame=bin_iterator[-1][1],
         )
+        event_timeline.removeEventsBelowLength(maxLen=event_min_duration)
 
         counts: list[int] = []
         durations: list[int] = []
@@ -191,7 +196,10 @@ class DataframeConstructor:
         return (counts, durations)
 
     def get_df_event_with_iterator(
-        self, event: str, bin_iterator: list[tuple[int, int]] | None = None
+        self,
+        event: str,
+        event_min_duration: int = 0,
+        bin_iterator: list[tuple[int, int]] | None = None,
     ):
         """Get a DataFrame containing event counts and durations for specified
         event and bin_iterator.
@@ -207,7 +215,10 @@ class DataframeConstructor:
             )
 
             counts, durations = self.count_event_per_bin(
-                animal, event, bin_iterator
+                animal,
+                event,
+                event_min_duration,
+                bin_iterator,
             )
 
             for i, bin_i in enumerate(bin_iterator):
@@ -229,10 +240,13 @@ class DataframeConstructor:
         df = pd.DataFrame(results)
         return df
 
-    def get_df_event(self, event: str):
+    def get_df_event(self, event: str, event_min_duration: int = 0):
         """Process data between start and end frames to get a DataFrame
         containing the specified event counts and durations. It will process
         the whole dataset using the process window.
+
+        All events shorter or with an equal duration to `event_min_duration`
+        (in frames) will be ignored in the analysis.
         """
 
         split_iterator = self.binner.split_iterator_in_chunks(
@@ -242,10 +256,14 @@ class DataframeConstructor:
 
         for bin_iterator in split_iterator:
             print(
-                f"EVENT processing ({event}) for frames {bin_iterator[0][0]} to "
-                f"{bin_iterator[-1][1]}"
+                f"EVENT processing ({event}) for frames {bin_iterator[0][0]} "
+                f"to {bin_iterator[-1][1]}"
             )
-            processed_df = self.get_df_event_with_iterator(event, bin_iterator)
+            processed_df = self.get_df_event_with_iterator(
+                event,
+                event_min_duration,
+                bin_iterator,
+            )
             if df is None:
                 df = processed_df
             else:
@@ -254,6 +272,66 @@ class DataframeConstructor:
         if df is None:
             print("Unable to create the event dataframe")
             return None
+
+        return df
+
+    def get_df_event_histogram(self, event: str, event_min_duration: int = 0):
+        """Get a DataFrame containing the histogram data of event duration (in
+        *frames*) for the specified event and bin_iterator.
+
+        All events shorter or with an equal duration to `event_min_duration`
+        (in frames) will be ignored in the analysis.
+        """
+
+        split_iterator = self.binner.split_iterator_in_chunks(
+            self.processing_window, self.binner.get_bin_iterator()
+        )
+
+        df = None
+        for bin_iterator in split_iterator:
+            print(
+                f"HISTOGRAM processing ({event}) for frames "
+                f"{bin_iterator[0][0]} to {bin_iterator[-1][1]}"
+            )
+            for animal in self.animal_pool.getAnimalList():
+                print(
+                    f"Creating HISTOGRAM dataframe ({event}) "
+                    f"for animal {animal.RFID}"
+                )
+                event_timeline = EventTimeLine(
+                    self.animal_pool.conn,
+                    event,
+                    idA=animal.baseId,
+                    minFrame=bin_iterator[0][0],
+                    maxFrame=bin_iterator[-1][1],
+                )
+                event_timeline.removeEventsBelowLength(
+                    maxLen=event_min_duration
+                )
+
+                processed_df = (
+                    pd.DataFrame(
+                        {"NBFRAMES": event_timeline.getEventLengthList()}
+                    )
+                    .groupby("NBFRAMES")
+                    .size()
+                    .reset_index(name="COUNT")
+                )
+                processed_df["RFID"] = animal.RFID
+                processed_df["ANIMALID"] = animal.baseId
+
+                if df is None:
+                    df = processed_df
+                else:
+                    df = pd.concat([df, processed_df], ignore_index=True)
+
+        if df is None:
+            print("Unable to create the histogram dataframe")
+            return None
+
+        df = df.groupby(["RFID", "ANIMALID", "NBFRAMES"], as_index=False).agg(
+            {"COUNT": "sum"}
+        )
 
         return df
 
@@ -287,15 +365,15 @@ class DataframeConstructor:
             print(f"Creating ACTIVITY dataframe for animal {animal.RFID}")
 
             stop_counts, stop_durations = self.count_event_per_bin(
-                animal, "Stop", bin_iterator
+                animal, "Stop", 0, bin_iterator
             )
 
             move_iso_counts, move_iso_durations = self.count_event_per_bin(
-                animal, "Move isolated", bin_iterator
+                animal, "Move isolated", 0, bin_iterator
             )
 
             move_inc_counts, move_inc_durations = self.count_event_per_bin(
-                animal, "Move in contact", bin_iterator
+                animal, "Move in contact", 0, bin_iterator
             )
 
             distances = animal.getDistancePerBin(
