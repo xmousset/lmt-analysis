@@ -21,10 +21,12 @@ class GenericSettings(ABC):
 
     Shared attributes
     -----------------
-    night_begin : int
-        Hour when the night begins (0-23). Defaults to 20.
-    night_duration : int
-        Duration of the night in hours. Defaults to 12.
+    night_begin : tuple[int, int]
+        Hour and minute when the night begins (0-23, 0-59).
+        Defaults to (20, 0).
+    night_duration : tuple[int, int]
+        Duration of the night in hours and minutes.
+        Defaults to (12, 0).
     output_folder : Path or None
         Folder to save output reports. Defaults to None.
     report_color : str
@@ -251,11 +253,12 @@ class AnalysisSettings(GenericSettings):
         events will be filtered out based on duration.
     fps : int, optional
         Frame rate of the recording in *frames per second*. Defaults to 30.
-    night_begin : int, optional
-        Hour when the night begins (0-23). Defaults to 20 (8 *p.m.*).
-    night_duration : int, optional
-        Duration of the night in hours. Defaults to 12 (12 hours so from
-        8 *p.m.* to 8 *a.m.* for example).
+    night_begin : tuple of int, optional
+        Hour and minute when the night begins (0-23, 0-59).
+        Defaults to (20, 0) (8 *p.m.*).
+    night_duration : tuple of int, optional
+        Duration of the night in hours and minutes.
+        Defaults to (12, 0) (12 hours so from 8 *p.m.* to 8 *a.m.*).
     output_folder : Path or str or None, optional
         Folder to save the output reports. By default, prompts user to
         select folder ('manual selection').
@@ -314,8 +317,8 @@ class AnalysisSettings(GenericSettings):
             "rebuild_events": False,
             "time_window": 15 * oneMinute,
             "utc_offset": 0.0,
-            "night_begin": 20,
-            "night_duration": 12,
+            "night_begin": (20, 0),
+            "night_duration": (12, 0),
             "output_folder": None,
             "report_color": "RFID",
             "report_x_axis": "START_TIME",
@@ -392,8 +395,8 @@ class AnalysisSettings(GenericSettings):
         self.time_window: int = defaults["time_window"]
         self.utc_offset: float = defaults["utc_offset"]
 
-        self.night_begin: int = defaults["night_begin"]
-        self.night_duration: int = defaults["night_duration"]
+        self.night_begin: tuple[int, int] = defaults["night_begin"]
+        self.night_duration: tuple[int, int] = defaults["night_duration"]
         self.output_folder: Path | None = defaults["output_folder"]
         self.report_color: str = defaults["report_color"]
         self.report_x_axis: str = defaults["report_x_axis"]
@@ -420,11 +423,12 @@ class ComparisonSettings(GenericSettings):
     ----------
     analyses_path : list of Path
         List of paths to the analyses to compare.
-    night_begin: int
-        Hour when the night begins (0-23). Defaults to 20 (8 *p.m.*).
-    night_duration: int
-        Duration of the night in hours. Defaults to 12 (12 hours so from
-        8 *p.m.* to 8 *a.m.* for example).
+    night_begin: tuple of int
+        Hour and minute when the night begins (0-23, 0-59).
+        Defaults to (20, 0) (8 *p.m.*).
+    night_duration: tuple of int
+        Duration of the night in hours and minutes.
+        Defaults to (12, 0) (12 hours so from 8 *p.m.* to 8 *a.m.*).
     output_folder: Path | None
         The folder where the comparison results will be saved. If None, it will
         be saved next to the first listed analysis, with a name based on the
@@ -441,8 +445,8 @@ class ComparisonSettings(GenericSettings):
     def get_default_settings() -> dict[str, Any]:
         """Get the default settings values as a dictionary."""
         return {
-            "night_begin": 20,
-            "night_duration": 12,
+            "night_begin": (20, 0),
+            "night_duration": (12, 0),
             "output_folder": None,
             "report_color": "RFID",
             "report_x_axis": "START_TIME",
@@ -472,8 +476,8 @@ class ComparisonSettings(GenericSettings):
         """Reset the settings to their initial values."""
         defaults = ComparisonSettings.get_default_settings()
 
-        self.night_begin: int = defaults["night_begin"]
-        self.night_duration: int = defaults["night_duration"]
+        self.night_begin: tuple[int, int] = defaults["night_begin"]
+        self.night_duration: tuple[int, int] = defaults["night_duration"]
         self.output_folder: Path | None = defaults["output_folder"]
         self.report_color: str = defaults["report_color"]
         self.report_x_axis: str = defaults["report_x_axis"]
