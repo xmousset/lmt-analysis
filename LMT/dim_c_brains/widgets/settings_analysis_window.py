@@ -465,7 +465,7 @@ class AnalysisSettingsWindow(QDialog):
         night_row.addWidget(self.night_duration_edit)
         night_row.addStretch(1)
 
-        form.addRow("<b>Night hours</b>", night_row)
+        form.addRow("<b>Night time</b>", night_row)
 
         # ================ UTC TIME ZONE ================
 
