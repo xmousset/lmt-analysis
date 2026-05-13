@@ -166,8 +166,6 @@ class Binner:
         """Calculate the bin dataframe with START_FRAME, END_FRAME, START_TIME,
         and END_TIME as columns."""
 
-        print(self.fps)
-
         # get the starting frame number of the first bin
         if self.bin_rounding:
             # it is a negative integer if bins start at round hours

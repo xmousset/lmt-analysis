@@ -64,8 +64,8 @@ def floor_power10(x: float | int) -> float:
 
 def draw_nights(
     fig: go.Figure,
-    night_begin: int,
-    night_duration: int,
+    night_begin: tuple[int, int],
+    night_duration: tuple[int, int],
     start_time: pd.Timestamp | None = None,
     end_time: pd.Timestamp | None = None,
 ):
@@ -76,8 +76,8 @@ def draw_nights(
         fig (go.Figure): The Plotly figure to modify.
         start_time (pd.Timestamp): The start time of the plot.
         end_time (pd.Timestamp): The end time of the plot.
-        night_begin (int): The hour at which night begins (0-23).
-        night_duration (int): Duration of the night in hours.
+        night_begin (tuple of int): The beginning of the night (hour, minute).
+        night_duration (tuple of int): Duration of the night (hours, minutes).
 
     Returns:
         go.Figure: The figure with night periods shaded.
@@ -101,14 +101,17 @@ def draw_nights(
         end_time = max(x_values)
 
     h = start_time.floor("1h")
-    start_h = h.replace(hour=night_begin)
-    if start_time.hour < night_begin:
+    start_h = h.replace(hour=night_begin[0], minute=night_begin[1])
+    if start_time.hour < night_begin[0] or (
+        start_time.hour == night_begin[0]
+        and start_time.minute < night_begin[1]
+    ):
         start_h = start_h - pd.Timedelta(days=1)
-    delta_h = pd.Timedelta(hours=night_duration)
+    delta_h = pd.Timedelta(hours=night_duration[0], minutes=night_duration[1])
     first_night = True
     while h < end_time:
 
-        if h.hour == night_begin:
+        if h.hour == night_begin[0] and h.minute == night_begin[1]:
             x_start = h
             x_end = h + delta_h
             if x_end > end_time:

@@ -196,7 +196,12 @@ class DatabaseAnalyzer:
             all_event_df = pd.DataFrame()
             sorted_events = sorted(self.settings.events)
 
-        progression: list = [0, 4 + len(sorted_events), progress_callback]
+        total_steps = 2 + len(sorted_events)
+        if self.settings.display_trajectory:
+            total_steps += 1
+        if self.settings.display_sensors:
+            total_steps += 1
+        progression: list = [0, total_steps, progress_callback]
         self.update_progression(*progression)
 
         # ACTIVITY
@@ -215,24 +220,34 @@ class DatabaseAnalyzer:
 
         # TRAJECTORY
         # ----------------
-        trajectory_df = df_constructor.get_df_trajectory()
-        trajectory.generic_reports(
-            repo_manager,
-            trajectory_df,
-            self.settings,
-        )
-        trajectory_df = None  # avoid big memory usage
-        progression[0] += 1
-        self.update_progression(*progression)
+        if self.settings.display_trajectory:
+            trajectory_df = df_constructor.get_df_trajectory()
+            trajectory.generic_reports(
+                repo_manager,
+                trajectory_df,
+                self.settings,
+            )
+            trajectory_df = None  # avoid big memory usage
+            progression[0] += 1
+            self.update_progression(*progression)
 
         # EVENTS
         # ----------------
         if all_event_df is not None:
             for event_name in sorted_events:
-                event_df = df_constructor.get_df_event(event_name)
+                event_df = df_constructor.get_df_event(
+                    event_name,
+                    self.settings.event_min_duration,
+                )
+
+                hist_df = df_constructor.get_df_event_histogram(
+                    event_name,
+                    self.settings.event_min_duration,
+                )
                 event.generic_reports(
                     repo_manager,
                     event_df,
+                    hist_df,
                     event_name,
                     self.settings,
                 )
@@ -242,14 +257,17 @@ class DatabaseAnalyzer:
 
         # SENSORS
         # ----------------
-        sensors_df = df_constructor.get_df_sensors()
-        sensors.generic_reports(
-            repo_manager,
-            sensors_df,
-            self.settings,
-        )
-        progression[0] += 1
-        self.update_progression(*progression)
+        if self.settings.display_sensors:
+            sensors_df = df_constructor.get_df_sensors()
+            sensors.generic_reports(
+                repo_manager,
+                sensors_df,
+                self.settings,
+            )
+            progression[0] += 1
+            self.update_progression(*progression)
+        else:
+            sensors_df = None
 
         # OVERVIEW
         # ----------------

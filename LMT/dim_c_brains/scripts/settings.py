@@ -21,10 +21,12 @@ class GenericSettings(ABC):
 
     Shared attributes
     -----------------
-    night_begin : int
-        Hour when the night begins (0-23). Defaults to 20.
-    night_duration : int
-        Duration of the night in hours. Defaults to 12.
+    night_begin : tuple[int, int]
+        Hour and minute when the night begins (0-23, 0-59).
+        Defaults to (20, 0).
+    night_duration : tuple[int, int]
+        Duration of the night in hours and minutes.
+        Defaults to (12, 0).
     output_folder : Path or None
         Folder to save output reports. Defaults to None.
     report_color : str
@@ -227,6 +229,12 @@ class AnalysisSettings(GenericSettings):
     database_path : Path or None, optional
         Path to the database to analyze. If None, no analysis can be done.
         Defaults to None.
+    display_sensors : bool, optional
+        Whether to display the sensors reports in the results.
+        Defaults to False.
+    display_trajectory : bool, optional
+        Whether to display the trajectory of the animals in the reports.
+        Defaults to False.
     events : set of str, optional
         Set of event names to analyze. By default, no event analysis is
         performed (empty set).
@@ -236,16 +244,21 @@ class AnalysisSettings(GenericSettings):
     filter_stop : bool, optional
         Whether to filter the 'Stop' event for animal activity.
         Defaults to False.
-    first_value_in_graph : bool, optional
-        Whether to include the first value of the data in the graphs. If False,
-        the first value will be excluded from the graphs. Defaults to True.
+    event_min_duration : int, optional
+        Whether to filter out all the events that are not long enough. All
+        events that are at least this duration (in frames) will be kept, the
+        others will be filtered out. This is only applied for event analysis.
+        Filters like stop or flickering and events display in 'Activity'
+        reports are not affected. Default value is 1, which means that no
+        events will be filtered out based on duration.
     fps : int, optional
         Frame rate of the recording in *frames per second*. Defaults to 30.
-    night_begin : int, optional
-        Hour when the night begins (0-23). Defaults to 20 (8 *p.m.*).
-    night_duration : int, optional
-        Duration of the night in hours. Defaults to 12 (12 hours so from
-        8 *p.m.* to 8 *a.m.* for example).
+    night_begin : tuple of int, optional
+        Hour and minute when the night begins (0-23, 0-59).
+        Defaults to (20, 0) (8 *p.m.*).
+    night_duration : tuple of int, optional
+        Duration of the night in hours and minutes.
+        Defaults to (12, 0) (12 hours so from 8 *p.m.* to 8 *a.m.*).
     output_folder : Path or str or None, optional
         Folder to save the output reports. By default, prompts user to
         select folder ('manual selection').
@@ -292,7 +305,10 @@ class AnalysisSettings(GenericSettings):
             "animal_type": AnimalType.MOUSE,
             "bin_rounding": True,
             "database_path": None,
+            "display_sensors": False,
+            "display_trajectory": False,
             "events": set(),
+            "event_min_duration": 1,
             "filter_flickering": True,
             "filter_stop": True,
             "fps": 30,
@@ -301,8 +317,8 @@ class AnalysisSettings(GenericSettings):
             "rebuild_events": False,
             "time_window": 15 * oneMinute,
             "utc_offset": 0.0,
-            "night_begin": 20,
-            "night_duration": 12,
+            "night_begin": (20, 0),
+            "night_duration": (12, 0),
             "output_folder": None,
             "report_color": "RFID",
             "report_x_axis": "START_TIME",
@@ -364,7 +380,10 @@ class AnalysisSettings(GenericSettings):
         self.animal_type: AnimalType = defaults["animal_type"]
         self.bin_rounding: bool = defaults["bin_rounding"]
         self.database_path: Path | None = defaults["database_path"]
+        self.display_sensors: bool = defaults["display_sensors"]
+        self.display_trajectory: bool = defaults["display_trajectory"]
         self.events: set[str] = defaults["events"]
+        self.event_min_duration: int = defaults["event_min_duration"]
         self.filter_flickering: bool = defaults["filter_flickering"]
         self.filter_stop: bool = defaults["filter_stop"]
         self.fps: int = defaults["fps"]
@@ -376,8 +395,8 @@ class AnalysisSettings(GenericSettings):
         self.time_window: int = defaults["time_window"]
         self.utc_offset: float = defaults["utc_offset"]
 
-        self.night_begin: int = defaults["night_begin"]
-        self.night_duration: int = defaults["night_duration"]
+        self.night_begin: tuple[int, int] = defaults["night_begin"]
+        self.night_duration: tuple[int, int] = defaults["night_duration"]
         self.output_folder: Path | None = defaults["output_folder"]
         self.report_color: str = defaults["report_color"]
         self.report_x_axis: str = defaults["report_x_axis"]
@@ -396,10 +415,6 @@ class AnalysisSettings(GenericSettings):
         self.events.add("Move isolated")
         self.events.add("Move in contact")
 
-        # if processing_limits is defined, force inclusion of first value
-        if self.processing_limits[0] is not None:
-            self.first_value_in_graph: bool = True
-
 
 class ComparisonSettings(GenericSettings):
     """Manage settings for LMT analyses comparator.
@@ -408,11 +423,12 @@ class ComparisonSettings(GenericSettings):
     ----------
     analyses_path : list of Path
         List of paths to the analyses to compare.
-    night_begin: int
-        Hour when the night begins (0-23). Defaults to 20 (8 *p.m.*).
-    night_duration: int
-        Duration of the night in hours. Defaults to 12 (12 hours so from
-        8 *p.m.* to 8 *a.m.* for example).
+    night_begin: tuple of int
+        Hour and minute when the night begins (0-23, 0-59).
+        Defaults to (20, 0) (8 *p.m.*).
+    night_duration: tuple of int
+        Duration of the night in hours and minutes.
+        Defaults to (12, 0) (12 hours so from 8 *p.m.* to 8 *a.m.*).
     output_folder: Path | None
         The folder where the comparison results will be saved. If None, it will
         be saved next to the first listed analysis, with a name based on the
@@ -429,8 +445,8 @@ class ComparisonSettings(GenericSettings):
     def get_default_settings() -> dict[str, Any]:
         """Get the default settings values as a dictionary."""
         return {
-            "night_begin": 20,
-            "night_duration": 12,
+            "night_begin": (20, 0),
+            "night_duration": (12, 0),
             "output_folder": None,
             "report_color": "RFID",
             "report_x_axis": "START_TIME",
@@ -460,8 +476,8 @@ class ComparisonSettings(GenericSettings):
         """Reset the settings to their initial values."""
         defaults = ComparisonSettings.get_default_settings()
 
-        self.night_begin: int = defaults["night_begin"]
-        self.night_duration: int = defaults["night_duration"]
+        self.night_begin: tuple[int, int] = defaults["night_begin"]
+        self.night_duration: tuple[int, int] = defaults["night_duration"]
         self.output_folder: Path | None = defaults["output_folder"]
         self.report_color: str = defaults["report_color"]
         self.report_x_axis: str = defaults["report_x_axis"]

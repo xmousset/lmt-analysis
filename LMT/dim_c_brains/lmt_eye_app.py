@@ -11,8 +11,8 @@ from pathlib import Path
 # command for executable creation (run in terminal at project root):
 # pyinstaller -p LMT --onefile --icon=LMT/dim_c_brains/res/lmt_eye_icon.png --add-data "LMT/dim_c_brains/res/lmt_eye_icon.png;dim_c_brains/res" --add-data "LMT/dim_c_brains/res/template;dim_c_brains/res/template" --add-data "LMT/dim_c_brains/res/assets;dim_c_brains/res/assets" --add-data "LMT/dim_c_brains/res/mouse_run.gif;dim_c_brains/res" LMT/dim_c_brains/lmt_eye_app.py
 
-APP_VERSION = "1.4"
-APP_RELEASE = "2026-04-13"
+APP_VERSION = "1.5"
+APP_RELEASE = "2026-05-13"
 
 if hasattr(sys, "_MEIPASS"):
     # in app
@@ -102,6 +102,11 @@ class LMTEYEApp(QMainWindow):
         switch_menu.addAction("Analysis creation", lambda: self.change_ui(0))
         switch_menu.addAction("Analysis comparison", lambda: self.change_ui(1))
 
+        debug_menu = menu.addMenu("Debug")
+        if debug_menu is None:
+            raise RuntimeError("Debug menu error.")
+        debug_menu.addAction("Reset settings", lambda: self.reset_settings())
+
         help_menu = menu.addMenu("Help")
         if help_menu is None:
             raise RuntimeError("Help menu error.")
@@ -120,6 +125,16 @@ class LMTEYEApp(QMainWindow):
             new_idx = (self.stacked.currentIndex() + 1) % self.stacked.count()
 
         self.stacked.setCurrentIndex(new_idx)
+
+    def reset_settings(self):
+        """Clear the default settings."""
+        default_path = (
+            AnalysisSettingsWindow.SAVING_PATH / "default_settings.json"
+        )
+        default_path.unlink(missing_ok=True)
+        QMessageBox.information(
+            self, "Settings reset", "All settings have been reset."
+        )
 
     def show_help(
         self, option: Literal["full", "version", "resources", "doc"] = "full"
@@ -236,13 +251,29 @@ class DatabaseAnalysisWidget(QWidget):
         #######################################
         #   Database informations   #
         #######################################
-        self.info_label = QLabel()
-        self.info_label.setTextFormat(Qt.TextFormat.RichText)
-        self.info_label.setText("<b>No loaded database.</b>")
+        self.info_lbl: dict[str, QLabel] = {}
+        self.info_lbl["db_name"] = QLabel()
+        self.info_lbl["animals"] = QLabel()
+        self.info_lbl["start"] = QLabel()
+        self.info_lbl["end"] = QLabel()
+        self.info_lbl["tz"] = QLabel()
+        self.info_lbl["tz"].setStyleSheet("color: gray; font-style: italic;")
+        self.info_lbl["duration"] = QLabel()
+        self.info_lbl["fps"] = QLabel()
 
-        db_info_row = QHBoxLayout()
-        db_info_row.addWidget(self.info_label)
-        main_layout.addLayout(db_info_row)
+        self.info_form = QFormLayout()
+        self.info_form.setFormAlignment(Qt.AlignmentFlag.AlignVCenter)
+        self.info_form.addRow("<b>Database:</b>", self.info_lbl["db_name"])
+        self.info_form.addRow("<b>Animals:</b>", self.info_lbl["animals"])
+        self.info_form.addRow("<b>Start:</b>", self.info_lbl["start"])
+        self.info_form.addRow("<b>End:</b>", self.info_lbl["end"])
+        self.info_form.addRow("", self.info_lbl["tz"])
+        self.info_form.addRow("<b>Duration:</b>", self.info_lbl["duration"])
+        self.info_form.addRow("<b>FPS:</b>", self.info_lbl["fps"])
+
+        self.update_database_info()
+
+        main_layout.addLayout(self.info_form)
 
         #######################################
         #   Buttons row   #
@@ -304,56 +335,37 @@ class DatabaseAnalysisWidget(QWidget):
                 else:
                     utc_offset_str = f"{utc_hours:+.2f}"
 
-            start_time = (infos["start_time"] + utc_offset).strftime(t_format)
-            end_time = (infos["end_time"] + utc_offset).strftime(t_format)
+            start_time = infos["start_time"].strftime(t_format)
+            end_time = infos["end_time"].strftime(t_format)
             d = infos["duration"].days
             h = infos["duration"].seconds // 3600
             m = (infos["duration"].seconds // 60) % 60
-            info_html = f"""
-                <table style='font-size:13px;'>
-                <tr>
-                    <td><b>Database:</b></td>
-                    <td>{infos["database_name"]}</td>
-                </tr>
-                <tr>
-                    <td><b>Animals:</b></td>
-                    <td>{infos["n_animals"]}</td>
-                </tr>
-                <tr>
-                    <td><b>Start:</b></td>
-                    <td>{start_time}</td>
-                </tr>
-                <tr>
-                    <td><b>End:</b></td>
-                    <td>{end_time}</td>
-                </tr>
-                <tr>
-                    <td colspan="2" style="color: gray; font-family: Calibri;">
-                        <center><i>
-                            <span>&#11169;</span>&nbsp;
-                            your time zone: UTC{utc_offset_str} - {utc_offset_name}
-                        </i></center>
-                    </td>
-                </tr>
-                <tr>
-                    <td><b>Duration:</b></td>
-                    <td>{d} days, {h} hours and {m} minutes</td>
-                </tr>
-                <tr>
-                    <td><b>FPS:</b></td>
-                    <td>{infos["fps"]:.1f}</td>
-                </tr>
-                </table>
-            """
-            self.info_label.setText(info_html)
-        else:
-            info_html = f"""
-                <table style='font-size:13px;'>
-                <tr><td><b>Database:</b></td><td>No loaded database.</td></tr>
-                </table>
-            """
 
-        self.info_label.setText(info_html)
+            self.info_lbl["db_name"].setText(infos["database_name"])
+            self.info_lbl["animals"].setText(str(infos["n_animals"]))
+            self.info_lbl["start"].setText(f"(UTC+0) {start_time}")
+            self.info_lbl["end"].setText(f"(UTC+0) {end_time}")
+            self.info_lbl["tz"].setText(
+                "<span>&#11169;&nbsp;</span> your current time zone: "
+                f"UTC{utc_offset_str} - {utc_offset_name}"
+            )
+            self.info_lbl["duration"].setText(
+                f"{d} days, {h} hours and {m} minutes"
+            )
+            self.info_lbl["fps"].setText(f"{infos['fps']:.1f}")
+
+            for row_id in range(self.info_form.rowCount()):
+                if row_id > 0:
+                    self.info_form.setRowVisible(row_id, True)
+
+        else:
+            for lbl in self.info_lbl.values():
+                lbl.setText("")
+            self.info_lbl["db_name"].setText("No loaded database.")
+
+            for row_id in range(self.info_form.rowCount()):
+                if row_id > 0:
+                    self.info_form.setRowVisible(row_id, False)
 
     def adjust_continue_btn_color(self):
         """Modify continue button style depending on the database load
@@ -949,13 +961,13 @@ if __name__ == "__main__":
         # not on windows, do nothing
         pass
 
+    sys.excepthook = exception_hook
+
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(True)
     app.setApplicationVersion(APP_VERSION)
     app.setWindowIcon(QIcon(str(ICON_PATH)))
     app.setApplicationName("LMT-EYE")
-
-    sys.excepthook = exception_hook
 
     main_window = LMTEYEApp()
 

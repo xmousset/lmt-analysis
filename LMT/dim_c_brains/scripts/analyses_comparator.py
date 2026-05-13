@@ -32,10 +32,13 @@ class AnalysesComparator:
         common_events = set.intersection(*set_list)
         return sorted(common_events)
 
-    def concatenate_dfs(self, table_name: str) -> pd.DataFrame:
+    def concatenate_dfs(
+        self,
+        table_name: str,
+        suffix: str = "_complete_table_Download_data.xlsx",
+    ) -> pd.DataFrame:
         """Concatenate a list of DataFrames into a single DataFrame."""
         dfs: list[pd.DataFrame] = []
-        suffix = "_complete_table_Download_data.xlsx"
         for path in self.settings.analyses_path:
             dfs.append(
                 pd.read_excel(
@@ -101,9 +104,21 @@ class AnalysesComparator:
                 self.concatenate_dfs(event_table_name),
                 on="RFID",
             )
+            hist_df = pd.merge(
+                animal_df,
+                self.concatenate_dfs(
+                    event_table_name,
+                    suffix=(
+                        "_Histogram_of_event_count_over_their_duration"
+                        "_Download_data.xlsx"
+                    ),
+                ),
+                on="RFID",
+            )
             event.generic_reports(
                 repo_manager,
                 event_df,
+                hist_df,
                 event_table_name.replace("_", " "),
                 self.settings,
             )
