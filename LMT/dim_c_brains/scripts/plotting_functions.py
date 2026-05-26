@@ -108,6 +108,12 @@ def draw_nights(
     night_delta = pd.Timedelta(
         hours=night_duration[0], minutes=night_duration[1]
     )
+    night_end = night_start + night_delta
+    if night_end.hour > start_time.hour or (
+        night_end.hour == start_time.hour
+        and night_end.minute > start_time.minute
+    ):
+        night_start -= pd.Timedelta(days=1)
     first_night = True
 
     while night_start < end_time:
