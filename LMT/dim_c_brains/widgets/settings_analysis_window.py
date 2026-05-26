@@ -283,14 +283,19 @@ class AnalysisSettingsWindow(QDialog):
         # time_window (frames and minutes)
         self.time_window_frames = QSpinBox()
         self.time_window_frames.setToolTip(
-            "Defines the binning of datas for the analysis (in frames)."
+            "Defines the binning of datas for the analysis (in frames).\n"
+            "TIP: for a bin size smaller than 1 minute, change this value "
+            "without modifying the minutes value (it will stay as 1 minute, "
+            "but it is the frames value that will be used)."
         )
         self.time_window_frames.setRange(1, 100_000_000)
         self.time_window_frames.setValue(self.settings.time_window)
 
         self.time_window_minutes = QDoubleSpinBox()
         self.time_window_minutes.setToolTip(
-            "Defines the binning of datas for the analysis (in minutes)."
+            "Defines the binning of datas for the analysis (in minutes).\n"
+            "TIP: for a bin size smaller than 1 minute, change the frames "
+            "value."
         )
         self.time_window_minutes.setDecimals(0)
         self.time_window_minutes.setRange(0, 100_000)

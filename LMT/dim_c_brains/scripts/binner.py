@@ -164,7 +164,7 @@ class Binner:
 
     def calculate_bin_df(self):
         """Calculate the bin dataframe with START_FRAME, END_FRAME, START_TIME,
-        and END_TIME as columns."""
+        and END_TIME as columns between start_frame and end_frame."""
 
         # get the starting frame number of the first bin
         if self.bin_rounding:
@@ -172,12 +172,14 @@ class Binner:
             dt_0 = self.frame_to_time(self.bin_size)
             dt_bin_0 = dt_0.floor(f"{self.bin_size // (60 * self.fps)}min")
             start_frame_bin_1 = self.time_to_frame(dt_bin_0)
+            while start_frame_bin_1 + self.bin_size < self.start_frame:
+                start_frame_bin_1 += self.bin_size
         else:
-            start_frame_bin_1 = 1
+            start_frame_bin_1 = self.start_frame
 
         # calculate starting frame of each bins until last frame
         bin_start_frames: List[int] = []
-        f = start_frame_bin_1 - self.bin_size
+        f = start_frame_bin_1
         while f < self.last_frame:
             bin_start_frames.append(f)
             f += self.bin_size
@@ -185,18 +187,18 @@ class Binner:
         # create the dataframe with all bin information
         list_df = []
         for f in bin_start_frames:
-            start_frame = f if f > 0 else 1
+            start_frame = f if f >= self.start_frame else self.start_frame
             end_frame = (
                 f + self.bin_size - 1
-                if f <= self.last_frame
+                if f + self.bin_size - 1 <= self.last_frame
                 else self.last_frame
             )
             list_df.append(
                 {
                     "START_FRAME": start_frame,
                     "END_FRAME": end_frame,
-                    "START_TIME": self.frame_to_time(f),
-                    "END_TIME": self.frame_to_time(f + self.bin_size - 1),
+                    "START_TIME": self.frame_to_time(start_frame),
+                    "END_TIME": self.frame_to_time(end_frame),
                 }
             )
 

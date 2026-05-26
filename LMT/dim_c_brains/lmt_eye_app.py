@@ -478,8 +478,10 @@ class AnalysisWorkerSignals(QObject):
 
     finished = pyqtSignal(bool)
     analyzer = pyqtSignal(DatabaseAnalyzer)
-    rebuild_progress = pyqtSignal(int, int)  # current, max
-    analyse_progress = pyqtSignal(int, int)  # current, max
+    rebuild_progress = pyqtSignal(int, int)
+    """Progression as (int, int) signal meaning (current, max)."""
+    analyse_progress = pyqtSignal(int, int)
+    """Progression as (int, int) signal meaning (current, max)."""
 
 
 class AnalysisWorker(QRunnable):

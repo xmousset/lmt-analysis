@@ -100,49 +100,42 @@ def draw_nights(
     if end_time is None:
         end_time = max(x_values)
 
-    h = start_time.floor("1h")
-    start_h = h.replace(hour=night_begin[0], minute=night_begin[1])
-    if start_time.hour < night_begin[0] or (
-        start_time.hour == night_begin[0]
-        and start_time.minute < night_begin[1]
-    ):
-        start_h = start_h - pd.Timedelta(days=1)
-    delta_h = pd.Timedelta(hours=night_duration[0], minutes=night_duration[1])
+    night_start = start_time.floor("1d")
+    night_start = night_start.replace(
+        hour=night_begin[0],
+        minute=night_begin[1],
+    )
+    night_delta = pd.Timedelta(
+        hours=night_duration[0], minutes=night_duration[1]
+    )
     first_night = True
-    while h < end_time:
 
-        if h.hour == night_begin[0] and h.minute == night_begin[1]:
-            x_start = h
-            x_end = h + delta_h
-            if x_end > end_time:
-                x_end = end_time
-            fig.add_vrect(
-                x0=x_start,
-                x1=x_end,
-                line_width=0,
-                fillcolor="black",
-                layer="below",
-                opacity=0.1,
-            )
-            h += delta_h
+    while night_start < end_time:
 
-        elif first_night and h > start_h and h < start_h + delta_h:
-            first_night = False
-            x_start = start_time.floor("15min")
-            x_end = start_h + delta_h
-            if x_end > end_time:
-                x_end = end_time
-            fig.add_vrect(
-                x0=x_start,
-                x1=x_end,
-                line_width=0,
-                fillcolor="black",
-                layer="below",
-                opacity=0.1,
-            )
-
+        if not first_night:
+            x_start = night_start
         else:
-            h += pd.Timedelta(hours=1)
+            if (
+                night_start <= start_time
+                and start_time < night_start + night_delta
+            ):
+                x_start = start_time.floor("1min")
+            else:
+                x_start = night_start
+
+        first_night = False
+        x_end = night_start + night_delta
+        if x_end > end_time:
+            x_end = end_time.floor("1min") + pd.Timedelta(minutes=1)
+        fig.add_vrect(
+            x0=x_start,
+            x1=x_end,
+            line_width=0,
+            fillcolor="black",
+            layer="below",
+            opacity=0.1,
+        )
+        night_start += pd.Timedelta(days=1)
 
     return fig
 

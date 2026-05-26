@@ -343,6 +343,9 @@ class AnalysisSettings(GenericSettings):
             for ts in initial_dict["processing_limits"]
         )
 
+        if new_dict["database_path"] is not None:
+            new_dict["database_path"] = str(new_dict["database_path"])
+
         if new_dict["output_folder"] is not None:
             new_dict["output_folder"] = str(new_dict["output_folder"])
 
@@ -364,6 +367,9 @@ class AnalysisSettings(GenericSettings):
             pd.Timestamp(ts) if ts is not None else None
             for ts in initial_dict["processing_limits"]
         )
+
+        if new_dict["database_path"] is not None:
+            new_dict["database_path"] = Path(new_dict["database_path"])
 
         if new_dict["output_folder"] is not None:
             new_dict["output_folder"] = Path(new_dict["output_folder"])
