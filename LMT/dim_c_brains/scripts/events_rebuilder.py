@@ -63,6 +63,7 @@ class EventsRebuilder:
             last_framenumber,
             last_timestamp,
             bin_size=processing_window,
+            bin_rounding=False,
             start=start,
             end=end,
             fps=fps,

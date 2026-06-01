@@ -134,8 +134,8 @@ class DatabaseAnalyzer:
         rebuilder = EventsRebuilder(
             connection,
             self.settings.animal_type,
-            self.settings.processing_limits[0],
-            self.settings.processing_limits[1],
+            None,  # rebuild from start of experiment
+            None,  # rebuild until end of experiment
             self.settings.fps,
             self.settings.processing_window,
             self.settings.utc_offset,

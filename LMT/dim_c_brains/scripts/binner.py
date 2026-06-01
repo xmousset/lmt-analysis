@@ -162,7 +162,7 @@ class Binner:
 
         self.calculate_bin_df()
 
-    def calculate_bin_df(self):
+    def calculate_bin_df(self) -> pd.DataFrame:
         """Calculate the bin dataframe with START_FRAME, END_FRAME, START_TIME,
         and END_TIME as columns between start_frame and end_frame."""
 
@@ -202,7 +202,10 @@ class Binner:
                 }
             )
 
-        self.bin_df = pd.DataFrame(list_df)
+        self.bin_df = pd.DataFrame(
+            list_df,
+            columns=["START_FRAME", "END_FRAME", "START_TIME", "END_TIME"],
+        )
         return self.bin_df
 
     def get_bin_list(
